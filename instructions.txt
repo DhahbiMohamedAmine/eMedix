@@ -1,0 +1,16 @@
+python --version  //3.11.5
+python -m venv venv
+venv\Scripts\activate  //commandeprompte
+pip install fastapi uvicorn pymongo
+pip install pydantic
+
+uvicorn main:app --reload  //run
+
+//front
+"dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next": "15.1.6"
+  },
+
+
