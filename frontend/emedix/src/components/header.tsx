@@ -21,7 +21,7 @@ export default function HeaderComponent() {
                     </Link>
                   </li>
                   <li className="ml-6">
-                    <Link href="/medicaments" className="text-white hover:text-blue-200">
+                    <Link href="/medicament" className="text-white hover:text-blue-200">
                       Medicaments
                     </Link>
                   </li>

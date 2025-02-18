@@ -19,7 +19,7 @@ export default function Home() {
       {/* Header */}
       <header className="absolute top-0 left-0 w-full z-50 px-4 sm:px-8 lg:px-16 xl:px-40 2xl:px-64">
         <div
-          className="hidden md:flex justify-between items-center py-2 border-b text-sm py-3"
+          className="hidden md:flex justify-between items-center border-b text-sm py-3"
           style={{ borderColor: "rgba(255,255,255,.25)" }}
         >
           <div className="">
@@ -110,12 +110,12 @@ export default function Home() {
                 </li>
                 <li className="md:ml-4">
                   <Link className="py-2 inline-block md:text-white md:px-2 font-semibold" href="#">
-                    Treatments
+                    Medicaments
                   </Link>
                 </li>
                 <li className="md:ml-4">
                   <Link className="py-2 inline-block md:text-white md:px-2 font-semibold" href="#">
-                    Testimonials
+                    Profile
                   </Link>
                 </li>
                 <li className="md:ml-4 md:hidden lg:block">
@@ -140,7 +140,7 @@ export default function Home() {
                     className="inline-block font-semibold px-4 py-2 text-white bg-blue-500 md:bg-transparent md:text-white border border-white rounded"
                     href="/login"
                   >
-                    Book Appointment
+                    Login
                   </Link>
                 </li>
               </ul>
