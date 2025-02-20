@@ -1,3 +1,4 @@
+import "../../public/tailwind.css"
 import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -65,7 +66,7 @@ export default function Login() {
                   </label>
                 </div>
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+                  <a href="request-reset-password" className="font-medium text-blue-600 hover:text-blue-500">
                     Forgot your password?
                   </a>
                 </div>
@@ -81,7 +82,7 @@ export default function Login() {
             </form>
             <p className="mt-6 text-center text-sm text-gray-600">
               Dont have an account?{' '}
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+              <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">
                 Sign up
               </a>
             </p>

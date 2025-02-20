@@ -9,4 +9,3 @@ def decodemedicament(med)-> dict:
 #all_medicament
 def decodemedicaments(meds)->list:
     return [decodemedicament(med) for med in meds]
-
