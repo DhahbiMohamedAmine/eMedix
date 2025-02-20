@@ -1,5 +1,4 @@
 import "../../public/tailwind.css"
-import { useState } from "react"
 import Link from "next/link"
 
 
@@ -26,12 +25,17 @@ export default function HeaderComponent() {
                     </Link>
                   </li>
                   <li className="ml-6">
-                    <Link href="/profile" className="text-white hover:text-blue-200">
+                    <Link href="/patient/profile" className="text-white hover:text-blue-200">
                       Profile
                     </Link></li>
                     <li className="ml-6">
                     <Link href="/userList" className="text-white hover:text-blue-200">
                       Users List
+                    </Link>
+                  </li>
+                  <li className="ml-6">
+                    <Link href="/patient/appointment" className="text-white hover:text-blue-200">
+                      Appointment
                     </Link>
                   </li>
                 </ul>

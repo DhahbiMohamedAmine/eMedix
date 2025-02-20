@@ -2,7 +2,6 @@ import Header from "../components/header"
 import Footer from "../components/footer"
 import "../../public/tailwind.css"
 import { useState } from "react"
-import Link from "next/link"
 import { PlusIcon, Trash2Icon, PencilIcon } from "@/components/ui/icons"
 
 interface Medicament {
