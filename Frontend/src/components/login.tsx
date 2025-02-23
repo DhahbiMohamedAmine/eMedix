@@ -1,9 +1,50 @@
-import "../../public/tailwind.css"
-import React from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
+import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/router";
 
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      // Sending login request to the backend API
+      const response = await fetch("http://localhost:8000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      if (response.ok) {
+        // Extract the token from the response
+        const data = await response.json();
+        const { access_token } = data;
+
+        // Store token in localStorage
+        localStorage.setItem("token", access_token);
+
+        // Redirect to the patient profile page
+        router.push("/patient/profile");
+      } else {
+        // Handle error if login fails
+        const errorData = await response.json();
+        setError(errorData.detail || "An error occurred while logging in.");
+      }
+    } catch {
+      setError("An error occurred while connecting to the server.");
+    }
+  };
+
   return (
     <main className="w-full min-h-screen bg-gray-100">
       <div className="flex flex-col md:flex-row h-screen">
@@ -28,7 +69,8 @@ export default function Login() {
         <div className="w-full md:w-1/2 flex items-center justify-center p-8 md:p-16">
           <div className="w-full max-w-md">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Login to Your Account</h2>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              {error && <div className="text-red-500 mb-4">{error}</div>}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                   Email
@@ -37,6 +79,8 @@ export default function Login() {
                   type="email"
                   id="email"
                   name="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -49,6 +93,8 @@ export default function Login() {
                   type="password"
                   id="password"
                   name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -81,7 +127,7 @@ export default function Login() {
               </div>
             </form>
             <p className="mt-6 text-center text-sm text-gray-600">
-              Dont have an account?{' '}
+              Don t have an account?{" "}
               <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
                 Sign up
               </Link>
@@ -90,5 +136,5 @@ export default function Login() {
         </div>
       </div>
     </main>
-  )
+  );
 }
