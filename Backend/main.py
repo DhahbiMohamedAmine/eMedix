@@ -1,4 +1,20 @@
 from fastapi import FastAPI
-from routes.MedicamentRouter import MedicamentRouter
+from fastapi.middleware.cors import CORSMiddleware
+from routes.auth_router import router as auth_router
+
 app = FastAPI()
-app.include_router(MedicamentRouter)
+
+# Include the authentication routes
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+origins = [
+    "http://localhost:3000",  # Your frontend URL
+]
+
+# Add CORS middleware to your FastAPI app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allows CORS for specific origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
