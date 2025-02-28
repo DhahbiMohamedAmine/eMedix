@@ -1,4 +1,4 @@
-import Appointment from "@/components/appointment";
+import Appointment from "@/components/patient/appointment";
 
 export default function AppointmentPage() {
   return <Appointment />
