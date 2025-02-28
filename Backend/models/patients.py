@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, Date, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 
-class Medcin(Base):
-    __tablename__ = 'medcins'  # Table name in the database
+class Patient(Base):
+    __tablename__ = 'patients'
 
     id = Column(Integer, primary_key=True, index=True)
     nom = Column(String, index=True)
@@ -12,9 +12,8 @@ class Medcin(Base):
     email = Column(String, unique=True, index=True)
     password = Column(String)
     isverified = Column(Boolean, default=False)
-    diplome = Column(String)
-    grade = Column(String)
-    annees_experience = Column(Integer)
+    date_de_naissance = Column(Date)
     photo = Column(String, nullable=True)
 
-    appointments = relationship("Appointment", back_populates="medicin")
+    # Add the back reference to appointments
+    appointments = relationship("Appointment", back_populates="patient")
