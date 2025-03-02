@@ -35,9 +35,13 @@ export default function ResetPassword() {
 
       // Send request to backend API and specify the expected response type
       const response = await axios.post<ResetPasswordResponse>(
-        `http://localhost:8000/auth/reset-password/${token}`,
-        { new_password: newPassword }
+        `http://localhost:8000/auth/reset-password`,
+        {
+          token: token, // Pass token in the body
+          new_password: newPassword,
+        }
       );
+      
 
       // Show success message
       setMessage(response.data.message);

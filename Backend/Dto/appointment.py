@@ -5,16 +5,16 @@ from typing import Optional
 # Model for creating an appointment (request body)
 class AppointmentRequest(BaseModel):
     patient_id: int
-    medcin_id: int
+    medecin_id: int
     date: date
-    status: Optional[str] = "en attente"
+    status: Optional[str] = "pending"
     note: Optional[str] = None
 
 # Model for appointment response
 class AppointmentResponse(BaseModel):
     id: int
     patient_id: int
-    medcin_id: int
+    medecin_id: int
     date: date
     status: str
     note: Optional[str] = None

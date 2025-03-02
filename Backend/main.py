@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.auth_router import router as auth_router
-from routes.appointment_router import router as appointment_router 
+from routes.appointment_router import router as appointment_router
 
 app = FastAPI()
 
@@ -15,8 +15,8 @@ origins = [
 # Add CORS middleware to your FastAPI app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allows CORS for specific origins
+    allow_origins=["http://localhost:3000"],  # Your frontend URL
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
