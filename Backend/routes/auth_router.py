@@ -264,11 +264,14 @@ async def login(user: LoginRequest, db: AsyncSession = Depends(get_db)):
         # Role-specific data
         if db_user.role == "patient" and db_user.patient:
             user_data.update({
+                "patient_id": db_user.patient.id,  # Add patient ID
                 "date_naissance": db_user.patient.date_naissance
-            })
+    })
+
 
         elif db_user.role == "medecin" and db_user.medecin:
             user_data.update({
+                "medecin_id": db_user.medecin.id,  # Add medecin
                 "adresse": db_user.medecin.adresse,
                 "diplome": db_user.medecin.diplome,
                 "grade": db_user.medecin.grade,
