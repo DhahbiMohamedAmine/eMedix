@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, Date, Text
 from sqlalchemy.orm import relationship
 from database import Base  # Assuming Base is from your database setup
 
@@ -8,7 +8,7 @@ class Appointment(Base):
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey('patients.id'), nullable=False)
     medecin_id = Column(Integer, ForeignKey('medecins.id'), nullable=False)
-    date = Column(Date, nullable=False)
+    date = Column(DateTime, nullable=False)
     status = Column(String, nullable=False)
     note = Column(Text, nullable=True)
 

@@ -1,12 +1,12 @@
 from pydantic import BaseModel
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 # Model for creating an appointment (request body)
 class AppointmentRequest(BaseModel):
     patient_id: int
     medecin_id: int
-    date: date
+    date: datetime
     status: Optional[str] = "pending"
     note: Optional[str] = None
 
@@ -15,12 +15,15 @@ class AppointmentResponse(BaseModel):
     id: int
     patient_id: int
     medecin_id: int
-    date: date
+    date: datetime
     status: str
     note: Optional[str] = None
 
+from datetime import datetime
+
 class UpdateAppointmentRequest(BaseModel):
-    date: date  # Only the date is required for update
+    date: datetime | None  # Use datetime instead of date
+
 
 
     class Config:

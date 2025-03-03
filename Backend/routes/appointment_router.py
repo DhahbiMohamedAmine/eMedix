@@ -36,7 +36,7 @@ async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = De
             medecin_id=appointment.medecin_id,
             date=appointment.date,
             status=appointment.status or "pending",
-            note=appointment.note
+            note=""
         )
 
         db.add(new_appointment)
@@ -61,9 +61,10 @@ async def update_appointment(appointment_id: int, appointment: UpdateAppointment
         if not existing_appointment:
             raise HTTPException(status_code=404, detail="Appointment not found")
 
-        # Update only the date if it's provided in the request
+        # Update the date (and time if needed)
         if appointment.date:
-            existing_appointment.date = appointment.date
+            existing_appointment.date = appointment.date  # Full datetime is accepted
+            existing_appointment.status = "pending"
 
         db.add(existing_appointment)
         await db.commit()
@@ -73,6 +74,7 @@ async def update_appointment(appointment_id: int, appointment: UpdateAppointment
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating appointment: {e}")
+
 
 @router.put("/cancelappointment/{appointment_id}", response_model=AppointmentResponse)
 async def cancel_appointment(appointment_id: int, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
