@@ -7,7 +7,7 @@ class AppointmentRequest(BaseModel):
     patient_id: int
     medecin_id: int
     date: datetime
-    status: Optional[str] = "pending"
+    status: Optional[str] = "waiting for medecin confirmation"
     note: Optional[str] = None
 
 # Model for appointment response
@@ -24,6 +24,9 @@ from datetime import datetime
 class UpdateAppointmentRequest(BaseModel):
     date: datetime | None  # Use datetime instead of date
 
+class AppointmentFilter(BaseModel):
+    medecin_id: int
+    date: date
 
 
     class Config:

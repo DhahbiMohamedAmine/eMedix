@@ -9,7 +9,6 @@ interface VerificationPopupProps {
 export default function VerificationPopup({
   isOpen,
   appointmentId,
-  appointmentName,
   onConfirm,
   onCancel,
 }: VerificationPopupProps) {
@@ -26,8 +25,7 @@ export default function VerificationPopup({
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <h3 className="mb-4 text-xl font-bold text-gray-900">Confirm Cancellation</h3>
         <p className="mb-6 text-gray-700">
-          Are you sure you want to cancel the appointment with{" "}
-          <span className="font-semibold">{appointmentName}</span>?
+          Are you sure you want to cancel this appointment?
         </p>
         <div className="flex justify-end space-x-3">
           <button
