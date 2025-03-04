@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
@@ -48,8 +50,28 @@ export default function AppointmentList() {
     fetchAppointments()
   }, [])
 
-  const handleAccept = (id: number) => {
-    console.log(`Accepted appointment ${id}`)
+  const handleAccept = async (id: number) => {
+    try {
+      // Make the API call to confirm the appointment
+      const response = await fetch(`http://localhost:8000/appointments/pconfirm/${id}`, {
+        method: "PUT",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Failed to confirm appointment: ${errorData.detail || "Unknown error"}`)
+      }
+
+      // Update the local state to reflect the confirmed status
+      setAppointments((prevAppointments) =>
+        prevAppointments.map((app) => (app.id === id ? { ...app, status: "confirmed" } : app)),
+      )
+
+      console.log(`Confirmed appointment ${id}`)
+    } catch (error) {
+      console.error("Error confirming appointment:", error)
+      alert(`Error confirming appointment: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
   }
 
   const handleReject = (id: number, date: string) => {
@@ -72,16 +94,12 @@ export default function AppointmentList() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(
-          `Failed to cancel appointment: ${errorData.message || errorData.error || "Unknown error"}`
-        )
+        throw new Error(`Failed to cancel appointment: ${errorData.message || errorData.error || "Unknown error"}`)
       }
 
       // Optionally, update the local state to reflect the cancelled status
       setAppointments((prevAppointments) =>
-        prevAppointments.map((app) =>
-          app.id === appointmentId ? { ...app, status: "cancelled" } : app
-        )
+        prevAppointments.map((app) => (app.id === appointmentId ? { ...app, status: "cancelled" } : app)),
       )
 
       console.log(`Cancelled appointment ${appointmentId}`)
@@ -101,7 +119,7 @@ export default function AppointmentList() {
   const saveAppointment = async (updatedAppointment: Appointment) => {
     try {
       // Make API call to update the appointment using the correct endpoint
-      const response = await fetch(`http://localhost:8000/appointments/updateappointment/${updatedAppointment.id}`, {
+      const response = await fetch(`http://localhost:8000/appointments/pupdateappointment/${updatedAppointment.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +129,7 @@ export default function AppointmentList() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(`Failed to update appointment: ${errorData.message || errorData.error || 'Unknown error'}`)
+        throw new Error(`Failed to update appointment: ${errorData.message || errorData.error || "Unknown error"}`)
       }
 
       // Get the updated appointment from the response
@@ -125,7 +143,7 @@ export default function AppointmentList() {
       setAppointmentToEdit(null)
     } catch (error) {
       console.error("Error updating appointment:", error)
-      alert(`Error updating appointment: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(`Error updating appointment: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
   }
 
@@ -167,21 +185,28 @@ export default function AppointmentList() {
                 <table className="w-full text-left text-sm text-gray-500">
                   <thead className="bg-gray-50 text-xs uppercase text-gray-700">
                     <tr>
-                      <th scope="col" className="px-4 py-3">Date</th>
-                      <th scope="col" className="px-4 py-3">Time</th>
-                      <th scope="col" className="px-4 py-3">Medecin ID</th>
-                      <th scope="col" className="px-4 py-3">Status</th>
-                      <th scope="col" className="px-4 py-3">Actions</th>
+                      <th scope="col" className="px-4 py-3">
+                        Date
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Time
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Medecin ID
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Status
+                      </th>
+                      <th scope="col" className="px-4 py-3">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {appointments.map((appointment) => {
                       const { date, time } = splitDateTime(appointment.date)
                       return (
-                        <tr
-                          key={appointment.id}
-                          className="border-b bg-white hover:bg-gray-50 cursor-pointer"
-                        >
+                        <tr key={appointment.id} className="border-b bg-white hover:bg-gray-50 cursor-pointer">
                           <td className="px-4 py-4">{date}</td>
                           <td className="px-4 py-4">{time}</td>
                           <td className="px-4 py-4">{appointment.medecin_id}</td>
@@ -201,15 +226,17 @@ export default function AppointmentList() {
                             </span>
                           </td>
                           <td className="px-4 py-4 flex">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleAccept(appointment.id)
-                              }}
-                              className="mr-2 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                            >
-                              Accept
-                            </button>
+                            {appointment.status === "waiting for patient confirmation" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAccept(appointment.id)
+                                }}
+                                className="mr-2 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                              >
+                                Accept
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -258,3 +285,4 @@ export default function AppointmentList() {
     </main>
   )
 }
+

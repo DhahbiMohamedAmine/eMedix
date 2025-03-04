@@ -1,12 +1,13 @@
 import asyncio
 from fastapi import APIRouter, HTTPException, Depends , BackgroundTasks
+from sqlalchemy import Date, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.appointments import Appointment as AppointmentModel
 from models.patients import Patient as PatientModel
 from models.medecins import Medecin
 from database import get_db
-from Dto.appointment import AppointmentRequest, AppointmentResponse , UpdateAppointmentRequest
+from Dto.appointment import AppointmentRequest, AppointmentResponse , UpdateAppointmentRequest, AppointmentFilter
 from datetime import date, datetime, timedelta
 from typing import List
 router = APIRouter()
@@ -35,7 +36,7 @@ async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = De
             patient_id=appointment.patient_id,
             medecin_id=appointment.medecin_id,
             date=appointment.date,
-            status=appointment.status or "pending",
+            status=appointment.status or "waiting for medecin confirmation",
             note=""
         )
 
@@ -50,7 +51,7 @@ async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = De
     
 
 
-@router.put("/updateappointment/{appointment_id}", response_model=AppointmentResponse)
+@router.put("/pupdateappointment/{appointment_id}", response_model=AppointmentResponse)
 async def update_appointment(appointment_id: int, appointment: UpdateAppointmentRequest, db: AsyncSession = Depends(get_db)):
     try:
         # Check if the appointment exists
@@ -64,7 +65,7 @@ async def update_appointment(appointment_id: int, appointment: UpdateAppointment
         # Update the date (and time if needed)
         if appointment.date:
             existing_appointment.date = appointment.date  # Full datetime is accepted
-            existing_appointment.status = "pending"
+            existing_appointment.status = "waiting for medecin confirmation"
 
         db.add(existing_appointment)
         await db.commit()
@@ -74,6 +75,33 @@ async def update_appointment(appointment_id: int, appointment: UpdateAppointment
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating appointment: {e}")
+    
+
+@router.put("/mupdateappointment/{appointment_id}", response_model=AppointmentResponse)
+async def update_appointment(appointment_id: int, appointment: UpdateAppointmentRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        # Check if the appointment exists
+        appointment_query = select(AppointmentModel).filter(AppointmentModel.id == appointment_id)
+        appointment_result = await db.execute(appointment_query)
+        existing_appointment = appointment_result.scalar_one_or_none()
+
+        if not existing_appointment:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+
+        # Update the date (and time if needed)
+        if appointment.date:
+            existing_appointment.date = appointment.date  # Full datetime is accepted
+            existing_appointment.status = "waiting for patient confirmation"
+
+        db.add(existing_appointment)
+        await db.commit()
+        await db.refresh(existing_appointment)
+
+        return existing_appointment
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating appointment: {e}")
+    
 
 
 @router.put("/cancelappointment/{appointment_id}", response_model=AppointmentResponse)
@@ -159,30 +187,34 @@ async def get_all_appointments(db: AsyncSession = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving appointments: {e}")
-    
-@router.get("/bydate/{appointment_date}", response_model=List[AppointmentResponse])
-async def get_appointments_by_date(appointment_date: date, db: AsyncSession = Depends(get_db)):
-    try:
-        # Convert the date into the start and end of that day to filter all appointments on that day
-        start_date = appointment_date
-        end_date = appointment_date
 
-        # Filter appointments by the given date
+
+@router.post("/bydate", response_model=List[AppointmentResponse])
+async def get_appointments_by_date_and_medecin(
+    filter: AppointmentFilter, 
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Filter by medecin_id and cast DateTime to Date
         appointment_query = select(AppointmentModel).filter(
-            AppointmentModel.date >= start_date,
-            AppointmentModel.date <= end_date
+            AppointmentModel.medecin_id == filter.medecin_id,
+            cast(AppointmentModel.date, Date) == filter.date
         )
 
         appointment_result = await db.execute(appointment_query)
         appointments = appointment_result.scalars().all()
 
         if not appointments:
-            raise HTTPException(status_code=404, detail="No appointments found for the given date")
+            raise HTTPException(status_code=404, detail="No appointments found for the given doctor and date")
 
         return appointments
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving appointments by date: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving appointments: {e}")
+
+
+
+
     
 
 @router.get("/patient/{patient_id}", response_model=List[AppointmentResponse])
@@ -217,7 +249,7 @@ async def get_appointments_by_medecin(medecin_id: int, db: AsyncSession = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving appointments: {e}")
 
-@router.put("/confirm/{appointment_id}", response_model=AppointmentResponse)
+@router.put("/mconfirm/{appointment_id}", response_model=AppointmentResponse)
 async def confirm_appointment(appointment_id: int, db: AsyncSession = Depends(get_db)):
     try:
         # Query to get the appointment by id
@@ -229,7 +261,35 @@ async def confirm_appointment(appointment_id: int, db: AsyncSession = Depends(ge
             raise HTTPException(status_code=404, detail="Appointment not found")
 
         # Check if the status is 'pending', and update to 'confirmed'
-        if existing_appointment.status != "pending":
+        if existing_appointment.status != "waiting for medecin confirmation":
+            raise HTTPException(status_code=400, detail="Appointment is not in 'pending' status")
+
+        # Change the status to 'confirmed'
+        existing_appointment.status = "confirmed"
+
+        db.add(existing_appointment)
+        await db.commit()
+        await db.refresh(existing_appointment)
+
+        return existing_appointment
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating appointment status: {e}")
+    
+
+@router.put("/pconfirm/{appointment_id}", response_model=AppointmentResponse)
+async def confirm_appointment(appointment_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # Query to get the appointment by id
+        appointment_query = select(AppointmentModel).filter(AppointmentModel.id == appointment_id)
+        appointment_result = await db.execute(appointment_query)
+        existing_appointment = appointment_result.scalar_one_or_none()
+
+        if not existing_appointment:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+
+        # Check if the status is 'pending', and update to 'confirmed'
+        if existing_appointment.status != "waiting for patient confirmation":
             raise HTTPException(status_code=400, detail="Appointment is not in 'pending' status")
 
         # Change the status to 'confirmed'
