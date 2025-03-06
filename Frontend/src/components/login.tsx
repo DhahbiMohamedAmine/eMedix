@@ -1,54 +1,113 @@
-import React, { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/router";
+"use client"
+
+import "../../public/tailwind.css"
+import type React from "react"
+import { useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { useRouter } from "next/router"
+
+interface UserData {
+  id: number
+  nom: string
+  prenom: string
+  email: string
+  telephone: string
+  role: string
+  photo: string
+  access_token: string
+  patient_id?: number // Added patient_id
+  date_naissance?: string
+  medecin_id?: number // Added medecin_id
+  adresse?: string
+  diplome?: string
+  grade?: string
+  annee_experience?: number
+  admin_id?: number
+}
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
+    console.log("Form submitted")
 
     try {
-      // Sending login request to the backend API
       const response = await fetch("http://localhost:8000/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
+        body: JSON.stringify({ email, password }),
+      })
 
       if (response.ok) {
-        // Extract the token from the response
-        const data = await response.json();
-        const { access_token } = data;
+        const userData: UserData = await response.json()
+        console.log("User Data:", userData)
 
-        // Store token in localStorage
-        localStorage.setItem("token", access_token);
+        // Store all user data in localStorage
+        localStorage.setItem("user", JSON.stringify(userData))
 
-        // Redirect to the patient profile page
-        router.push("/patient/profile");
+        // Store role-specific data
+        switch (userData.role) {
+          case "patient":
+            if (userData.patient_id && userData.date_naissance) {
+              localStorage.setItem(
+                "patientData",
+                JSON.stringify({
+                  patient_id: userData.patient_id,
+                  date_naissance: userData.date_naissance,
+                }),
+              )
+            }
+            router.push("/patient/profile")
+            break
+          case "medecin":
+            if (userData.medecin_id) {
+              localStorage.setItem(
+                "medecinData",
+                JSON.stringify({
+                  medecin_id: userData.medecin_id,
+                  adresse: userData.adresse,
+                  diplome: userData.diplome,
+                  grade: userData.grade,
+                  annee_experience: userData.annee_experience,
+                }),
+              )
+            }
+            router.push("/medcine/profile")
+            break
+          case "admin":
+            if (userData.admin_id) {
+              localStorage.setItem(
+                "adminData",
+                JSON.stringify({
+                  admin_id: userData.admin_id,
+                }),
+              )
+            }
+            router.push("/admin/profile")
+            break
+          default:
+            setError("Unknown user role")
+        }
       } else {
-        // Handle error if login fails
-        const errorData = await response.json();
-        setError(errorData.detail || "An error occurred while logging in.");
+        const errorData = await response.json()
+        setError(errorData.detail || "An error occurred while logging in.")
       }
-    } catch {
-      setError("An error occurred while connecting to the server.");
+    } catch (err) {
+      console.error("Connection error:", err)
+      setError("An error occurred while connecting to the server.")
     }
-  };
+  }
 
   return (
     <main className="w-full min-h-screen bg-gray-100">
       <div className="flex flex-col md:flex-row h-screen">
-        {/* Left side - Image */}
         <div className="w-full md:w-1/2 relative">
           <Image
             src="/images/banner.png"
@@ -64,8 +123,6 @@ export default function Login() {
             </Link>
           </div>
         </div>
-
-        {/* Right side - Login form */}
         <div className="w-full md:w-1/2 flex items-center justify-center p-8 md:p-16">
           <div className="w-full max-w-md">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Login to Your Account</h2>
@@ -78,10 +135,9 @@ export default function Login() {
                 <input
                   type="email"
                   id="email"
-                  name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                   required
                 />
               </div>
@@ -92,43 +148,24 @@ export default function Login() {
                 <input
                   type="password"
                   id="password"
-                  name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                   required
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                    Remember me
-                  </label>
-                </div>
-                <div className="text-sm">
-                  <a href="request-reset-password" className="font-medium text-blue-600 hover:text-blue-500">
-                    Forgot your password?
-                  </a>
-                </div>
+              <div className="text-sm">
+                <Link href="/request-reset-password" className="font-medium text-blue-600 hover:text-blue-500">
+                  Forgot your password?
+                </Link>
               </div>
-              <div>
-                <button
-                  type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Sign in
-                </button>
-              </div>
+              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                Sign in
+              </button>
             </form>
             <p className="mt-6 text-center text-sm text-gray-600">
               Don t have an account?{" "}
-              <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href="/register" className="text-blue-600">
                 Sign up
               </Link>
             </p>
@@ -136,5 +173,6 @@ export default function Login() {
         </div>
       </div>
     </main>
-  );
+  )
 }
+
