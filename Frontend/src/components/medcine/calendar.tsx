@@ -4,6 +4,9 @@ import { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import Header from "../header"
 import Footer from "../footer"
+import VerificationPopup from "./appointmentcancel"
+import EditAppointmentForm from "./appointmentedit"
+import axios from "axios"
 
 interface Appointment {
   id: string
@@ -15,19 +18,157 @@ interface Appointment {
 }
 export default function AppointmentCalendar() {
   // Replace the static appointments array
-  const [appointments, setAppointments] = useState<
-    Array<{
-      id: number
-      patient_id: number
-      medecin_id: number
-      date: string
-      status: string
-      note?: string
-      name?: string // We'll add this for display purposes
-      reason?: string // We'll add this for display purposes
-      time?: string // We'll add this for display purposes
-    }>
-  >([])
+  interface Appointment {
+    id: number
+    patient_id: number
+    medecin_id: number
+    date: string
+    status: string
+    note: string | null
+  }
+  
+  
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [medecinId, setMedecinId] = useState<string | null>(null)
+  const [selectedAppointment, setSelectedAppointment] = useState<{ id: number; date: string } | null>(null)
+  const [isPopupOpen, setIsPopupOpen] = useState(false)
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false)
+  const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null)
+
+  // Fetch medecinId from localStorage
+  useEffect(() => {
+    const storedMedecinData = localStorage.getItem("medecinData")
+    if (storedMedecinData) {
+      const parsedData = JSON.parse(storedMedecinData)
+      if (parsedData.medecin_id) {
+        setMedecinId(parsedData.medecin_id)
+      }
+    }
+    
+  }, [])
+console.log(medecinId)
+  // Fetch appointments when medecinId is set
+  useEffect(() => {
+    if (!medecinId) return
+
+    const fetchAppointments = async () => {
+      try {
+        const response = await axios.get(`http://localhost:8000/appointments/medecin/${medecinId}`)
+        setAppointments(response.data) // Store the list of appointments
+      } catch (err) {
+        setError("Error fetching appointments.")
+        console.error(err)
+      } 
+    }
+
+    fetchAppointments()
+  }, [medecinId])
+console.log(appointments)
+
+const handleAccept = async (appointmentId: number) => {
+  console.log("Attempting to confirm appointment:", appointmentId);
+
+  try {
+    const response = await axios.put(`http://localhost:8000/appointments/mconfirm/${appointmentId}`, {
+      status: "confirmed",
+    });
+
+    console.log("Response from server:", response.data);
+
+    setAppointments((prevAppointments) =>
+      prevAppointments.map((a) =>
+        a.id === appointmentId ? { ...a, status: "confirmed" } : a
+      )
+    );
+
+    alert("Appointment confirmed successfully!");
+  } catch (error) {
+    console.error("Failed to confirm appointment:", );
+  }
+};
+
+  const handleReject = (id: number, date: string) => {
+    setSelectedAppointment({ id, date })
+    setIsPopupOpen(true)
+  }
+
+  const handleEdit = (appointment: Appointment, event: React.MouseEvent) => {
+    event.stopPropagation()
+    setAppointmentToEdit(appointment)
+    setIsEditFormOpen(true)
+  }
+
+  const confirmReject = async (appointmentId: number) => {
+    try {
+      // Make the API call to update the status
+      const response = await fetch(`http://localhost:8000/appointments/cancelappointment/${appointmentId}`, {
+        method: "PUT",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Failed to cancel appointment: ${errorData.message || errorData.error || "Unknown error"}`)
+      }
+
+      // Optionally, update the local state to reflect the cancelled status
+      setAppointments((prevAppointments) =>
+        prevAppointments.map((app) => (app.id === appointmentId ? { ...app, status: "cancelled" } : app)),
+      )
+
+      console.log(`Cancelled appointment ${appointmentId}`)
+      setIsPopupOpen(false)
+      setSelectedAppointment(null)
+    } catch (error) {
+      console.error("Error cancelling appointment:", error)
+      alert(`Error cancelling appointment: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
+  }
+
+  const cancelReject = () => {
+    setIsPopupOpen(false)
+    setSelectedAppointment(null)
+  }
+  const saveAppointment = async (updatedAppointment: Appointment) => {
+    try {
+      // Make API call to update the appointment using the correct endpoint
+      const response = await fetch(`http://localhost:8000/appointments/mupdateappointment/${updatedAppointment.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedAppointment),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Failed to update appointment: ${errorData.message || errorData.error || "Unknown error"}`)
+      }
+
+      // Get the updated appointment from the response
+      const updatedData = await response.json()
+
+      // Update the local state with the updated appointment
+      setAppointments(appointments.map((app) => (app.id === updatedAppointment.id ? updatedData : app)))
+
+      console.log(`Updated appointment ${updatedAppointment.id}`, updatedData)
+      setIsEditFormOpen(false)
+      setAppointmentToEdit(null)
+    } catch (error) {
+      console.error("Error updating appointment:", error)
+      alert(`Error updating appointment: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
+  }
+
+  const cancelEdit = () => {
+    setIsEditFormOpen(false)
+    setAppointmentToEdit(null)
+  }
+
+  // Function to split date and time
+  const splitDateTime = (dateTimeString: string) => {
+    const [date, time] = dateTimeString.split("T")
+    return { date, time: time.slice(0, 5) } // Assuming time is in HH:MM format
+  }
 
   const [currentDate, setCurrentDate] = useState(new Date()) // Today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -374,17 +515,47 @@ export default function AppointmentCalendar() {
                                   {appointment.status}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                <button className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-emerald-600">
-                                  Accept
-                                </button>
-                                <button className="bg-teal-500 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-teal-600">
-                                  Edit
-                                </button>
-                                <button className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-red-600">
-                                  X
-                                </button>
-                              </td>
+                              <td className="px-4 py-4">
+  {appointment.status === "waiting for medecin confirmation" ? (
+    <>
+      <button
+        onClick={() => handleAccept(appointment.id)}
+        className="mr-2 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600"
+      >
+        Accept
+      </button>
+      <button
+        onClick={() => handleReject(appointment.id, appointment.date)}
+        className="rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600"
+      >
+        Reject
+      </button>
+    </>
+  ) : appointment.status === "waiting for patient confirmation" ? (
+    <>
+      <button
+        onClick={(event) => handleEdit(appointment, event)}
+        className="mr-2 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-600"
+      >
+        Edit
+      </button>
+      <button
+        onClick={() => handleReject(appointment.id, appointment.date)}
+        className="rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600"
+      >
+        Reject
+      </button>
+    </>
+  ) : appointment.status === "confirmed" ? (
+    <button
+      onClick={(event) => handleEdit(appointment, event)}
+      className="rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-600"
+    >
+      Edit
+    </button>
+  ) : null}
+</td>
+
                             </tr>
                           )
                         })}
@@ -397,9 +568,23 @@ export default function AppointmentCalendar() {
           </div>
         </div>
       </main>
-
+<VerificationPopup
+              isOpen={isPopupOpen}
+              appointmentId={selectedAppointment?.id || null}
+              appointmentName={selectedAppointment?.date || ""}
+              onConfirm={confirmReject}
+              onCancel={cancelReject}
+            />
+      <EditAppointmentForm
+              isOpen={isEditFormOpen}
+              appointment={appointmentToEdit}
+              onSave={saveAppointment}
+              onCancel={cancelEdit}
+            />
       {/* Fixed Footer */}
+      
       <div className="flex-shrink-0">
+
         <Footer />
       </div>
     </div>

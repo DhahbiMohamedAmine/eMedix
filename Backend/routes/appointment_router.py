@@ -262,7 +262,7 @@ async def confirm_appointment(appointment_id: int, db: AsyncSession = Depends(ge
 
         # Check if the status is 'pending', and update to 'confirmed'
         if existing_appointment.status != "waiting for medecin confirmation":
-            raise HTTPException(status_code=400, detail="Appointment is not in 'pending' status")
+            raise HTTPException(status_code=400, detail="Appointment is not in 'waiting for medecin confirmation' status")
 
         # Change the status to 'confirmed'
         existing_appointment.status = "confirmed"
@@ -290,7 +290,7 @@ async def confirm_appointment(appointment_id: int, db: AsyncSession = Depends(ge
 
         # Check if the status is 'pending', and update to 'confirmed'
         if existing_appointment.status != "waiting for patient confirmation":
-            raise HTTPException(status_code=400, detail="Appointment is not in 'pending' status")
+            raise HTTPException(status_code=400, detail="Appointment is not in 'waiting for patient confirmation' status")
 
         # Change the status to 'confirmed'
         existing_appointment.status = "confirmed"
