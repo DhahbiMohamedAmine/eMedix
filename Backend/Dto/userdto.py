@@ -1,3 +1,4 @@
+from fastapi import UploadFile
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional
@@ -28,3 +29,57 @@ class UserRequest(BaseModel):
                 schema['properties'].pop('diplome', None)
                 schema['properties'].pop('grade', None)
                 schema['properties'].pop('annee_experience', None)
+
+
+class UserResponse(BaseModel):
+    id: int
+    nom: str
+    prenom: str
+    telephone: str
+    email: str
+    role: str
+    photo: Optional[str]
+
+
+class UpdatePatientProfileRequest(BaseModel):
+    telephone: Optional[str] = None
+    photo: Optional[UploadFile] = None
+
+class UpdateMedcinProfileRequest(BaseModel):
+    adresse: Optional[str]
+    telephone: Optional[str]
+    photo: Optional[str]
+    password:str
+
+
+class PatientRequest(BaseModel):
+    id: int
+    user_id:int 
+    user: Optional[UserResponse]
+
+class MedcinResponse(BaseModel):
+    id: int
+    nom: str
+    user_id: int
+    prenom: str
+    telephone: str
+    email: str
+    password: str
+    photo: Optional[str] 
+    adresse: Optional[str]
+    diplome: Optional[str] 
+    grade: Optional[str] 
+    annee_experience: Optional[int]  
+
+class PatientResponse(BaseModel):
+    id: int
+    user_id: int
+    nom: str
+    prenom: str
+    telephone: str
+    email: str
+    photo: Optional[str]
+    date_naissance: date
+
+    class Config:
+        from_attributes = True  

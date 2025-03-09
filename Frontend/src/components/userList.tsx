@@ -1,7 +1,7 @@
 import "../../public/tailwind.css"
 import Image from "next/image"
 import Link from "next/link"
-import Header from "../components/header"
+import Header from "./patient/header"
 import Footer from "../components/footer"
 // This would typically come from an API or database
 const users = [

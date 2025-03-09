@@ -31,3 +31,6 @@ class AppointmentFilter(BaseModel):
 
     class Config:
         from_attributes = True  # Updated from orm_mode in Pydantic v2
+
+class UpdateAppointmentNoteRequest(BaseModel):
+    note: str
