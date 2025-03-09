@@ -7,7 +7,7 @@ from models.appointments import Appointment as AppointmentModel
 from models.patients import Patient as PatientModel
 from models.medecins import Medecin
 from database import get_db
-from Dto.appointment import AppointmentRequest, AppointmentResponse , UpdateAppointmentRequest, AppointmentFilter
+from Dto.appointment import AppointmentRequest, AppointmentResponse, UpdateAppointmentNoteRequest , UpdateAppointmentRequest, AppointmentFilter
 from datetime import date, datetime, timedelta
 from typing import List
 router = APIRouter()
@@ -303,3 +303,32 @@ async def confirm_appointment(appointment_id: int, db: AsyncSession = Depends(ge
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating appointment status: {e}")
+    
+    
+@router.put("/updatenote/{appointment_id}", response_model=AppointmentResponse)
+async def update_appointment_note(
+    appointment_id: int, 
+    appointment: UpdateAppointmentNoteRequest, 
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Vérifier si le rendez-vous existe
+        appointment_query = select(AppointmentModel).filter(AppointmentModel.id == appointment_id)
+        appointment_result = await db.execute(appointment_query)
+        existing_appointment = appointment_result.scalar_one_or_none()
+
+        if not existing_appointment:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+
+        # Mise à jour de la note uniquement
+        if appointment.note is not None:
+            existing_appointment.note = appointment.note
+
+        db.add(existing_appointment)
+        await db.commit()
+        await db.refresh(existing_appointment)
+
+        return existing_appointment
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating appointment note: {e}")

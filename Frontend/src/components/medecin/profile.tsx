@@ -7,11 +7,11 @@ import Image from "next/image"
 import Link from "next/link"
 import { CheckCircle, AlertCircle } from "lucide-react"
 
-import Header from "./header"
-import Footer from "../../components/footer"
+import Header from "../medecin/header"
+import Footer from "../footer"
 
-export default function ProfilePage() {
-  const [patient, setPatient] = useState({
+export default function DoctorProfilePage() {
+  const [doctor, setDoctor] = useState({
     id: "",
     nom: "",
     prenom: "",
@@ -19,55 +19,59 @@ export default function ProfilePage() {
     password: "",
     telephone: "",
     photo: "" as string | File,
-    date_naissance: "",
     adresse: "",
+    diplome: "",
+    grade: "",
+    annee_experience: 0,
   })
 
-  const [patientId, setPatientId] = useState(null)
+  const [doctorId, setDoctorId] = useState(null)
   const [notification, setNotification] = useState<{
     type: "success" | "error" | null
     message: string
   }>({ type: null, message: "" })
 
-  // Fetch patientId from localStorage
+  // Fetch doctorId from localStorage
   useEffect(() => {
-    const storedPatientData = localStorage.getItem("patientData")
+    const storedDoctorData = localStorage.getItem("user")
 
-    if (storedPatientData) {
-      const parsedData = JSON.parse(storedPatientData)
-      if (parsedData.patient_id) {
-        setPatientId(parsedData.patient_id)
+    if (storedDoctorData) {
+      const parsedData = JSON.parse(storedDoctorData)
+      if (parsedData.medecin_id) {
+        setDoctorId(parsedData.medecin_id)
       }
     }
   }, [])
 
-  // Fetch Patient Data when patientId is set
+  // Fetch Doctor Data when doctorId is set
   useEffect(() => {
-    if (!patientId) return
+    if (!doctorId) return
 
-    const fetchPatient = async () => {
+    const fetchDoctor = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/users/patient/${patientId}`)
+        const response = await axios.get(`http://localhost:8000/users/medecin/${doctorId}`)
         const data = response.data
 
-        setPatient({
+        setDoctor({
           id: data.id || "",
           nom: data.nom || "",
           prenom: data.prenom || "",
           email: data.email || "",
-          password: data.email,
+          password: data.password || "",
           telephone: data.telephone || "",
           photo: data.photo || "",
-          date_naissance: data.date_naissance || "",
           adresse: data.adresse || "",
+          diplome: data.diplome || "",
+          grade: data.grade || "",
+          annee_experience: data.annee_experience || 0,
         })
       } catch (error) {
-        console.error("Error fetching patient data:", error)
+        console.error("Error fetching doctor data:", error)
       }
     }
 
-    fetchPatient()
-  }, [patientId])
+    fetchDoctor()
+  }, [doctorId])
 
   // Auto-hide notification after 5 seconds
   useEffect(() => {
@@ -80,25 +84,30 @@ export default function ProfilePage() {
   }, [notification])
 
   // Handle Input Change
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPatient({ ...patient, [e.target.id]: e.target.value })
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setDoctor({ ...doctor, [e.target.id]: e.target.value })
   }
 
-  // Handle Form Submission (Update Patient)
+  // Handle Form Submission (Update Doctor)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     try {
       const formData = new FormData()
-      formData.append("nom", patient.nom)
-      formData.append("prenom", patient.prenom)
-      formData.append("telephone", patient.telephone)
-      formData.append("email", patient.email)
-      if (patient.photo instanceof File) {
-        formData.append("photo", patient.photo)
+      formData.append("nom", doctor.nom)
+      formData.append("prenom", doctor.prenom)
+      formData.append("telephone", doctor.telephone)
+      formData.append("email", doctor.email)
+      formData.append("adresse", doctor.adresse || "")
+      formData.append("diplome", doctor.diplome || "")
+      formData.append("grade", doctor.grade || "")
+      formData.append("annee_experience", doctor.annee_experience.toString())
+
+      if (doctor.photo instanceof File) {
+        formData.append("photo", doctor.photo)
       }
 
-      const response = await axios.put(`http://localhost:8000/users/updatepatient/${patientId}`, formData, {
+      const response = await axios.put(`http://localhost:8000/users/updatemedecin/${doctorId}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -115,7 +124,7 @@ export default function ProfilePage() {
         window.scrollTo({ top: 0, behavior: "smooth" })
       }
     } catch (error) {
-      console.error("Error updating patient profile:", error)
+      console.error("Error updating doctor profile:", error)
       if (axios.isAxiosError(error)) {
         const errorMessage = error.response?.data?.message || "Failed to update profile. Please check your information."
         setNotification({
@@ -177,7 +186,7 @@ export default function ProfilePage() {
           <div className="relative w-full max-w-6xl rounded-lg bg-white shadow-xl">
             {/* Banner */}
             <div className="absolute -right-2 -top-2 z-10 rotate-12 transform bg-[#2DD4BF] px-12 py-2 text-white shadow-md">
-              <span className="text-lg font-semibold">Profile</span>
+              <span className="text-lg font-semibold">Doctor Profile</span>
             </div>
 
             <div className="grid md:grid-cols-2">
@@ -185,15 +194,15 @@ export default function ProfilePage() {
               <div className="relative flex flex-col items-center justify-center w-full h-full bg-[#2DD4BF] p-8 py-16">
                 <div className="flex flex-col items-center gap-4">
                   <h2 className="text-2xl font-semibold text-white mb-4">Profile Photo</h2>
-                  {patient.photo ? (
+                  {doctor.photo ? (
                     <div className="relative w-[280px] h-[280px] rounded-[150px] border-4 border-white bg-white overflow-hidden">
                       <Image
                         src={
-                          typeof patient.photo === "string"
-                            ? patient.photo.startsWith("http")
-                              ? patient.photo
-                              : `http://localhost:8000${patient.photo}`
-                            : URL.createObjectURL(patient.photo)
+                          typeof doctor.photo === "string"
+                            ? doctor.photo.startsWith("http")
+                              ? doctor.photo
+                              : `http://localhost:8000${doctor.photo}`
+                            : URL.createObjectURL(doctor.photo)
                         }
                         alt="Profile preview"
                         width={180}
@@ -220,7 +229,7 @@ export default function ProfilePage() {
                     accept="image/*"
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
-                        setPatient((prev) => ({
+                        setDoctor((prev) => ({
                           ...prev,
                           photo: e.target.files![0],
                         }))
@@ -233,7 +242,7 @@ export default function ProfilePage() {
 
               {/* Right side - Form */}
               <div className="p-8 md:p-12">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">User Profile</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-8">Doctor Profile</h1>
                 <form className="space-y-6" onSubmit={handleSubmit}>
                   {/* Name fields side by side */}
                   <div className="grid grid-cols-2 gap-4">
@@ -244,7 +253,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         id="prenom"
-                        value={patient.prenom}
+                        value={doctor.prenom}
                         disabled
                         className="w-full bg-gray-100 rounded-md border px-4 py-3"
                       />
@@ -256,7 +265,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         id="nom"
-                        value={patient.nom}
+                        value={doctor.nom}
                         disabled
                         className="w-full bg-gray-100 rounded-md border px-4 py-3"
                       />
@@ -270,20 +279,7 @@ export default function ProfilePage() {
                     <input
                       type="email"
                       id="email"
-                      value={patient.email}
-                      disabled
-                      className="w-full bg-gray-100 rounded-md border px-4 py-3"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="date_naissance" className="block text-sm font-medium text-gray-700">
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      id="date_naissance"
-                      value={patient.date_naissance}
+                      value={doctor.email}
                       disabled
                       className="w-full bg-gray-100 rounded-md border px-4 py-3"
                     />
@@ -296,9 +292,63 @@ export default function ProfilePage() {
                     <input
                       type="tel"
                       id="telephone"
-                      value={patient.telephone}
+                      value={doctor.telephone}
                       onChange={handleChange}
                       className="w-full rounded-md border px-4 py-3 focus:border-[#2DD4BF] focus:ring-[#2DD4BF]/20"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="adresse" className="block text-sm font-medium text-gray-700">
+                      Address
+                    </label>
+                    <textarea
+                      id="adresse"
+                      value={doctor.adresse || ""}
+                      onChange={handleChange}
+                      className="w-full rounded-md border px-4 py-3 focus:border-[#2DD4BF] focus:ring-[#2DD4BF]/20"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="diplome" className="block text-sm font-medium text-gray-700">
+                        Diploma
+                      </label>
+                      <input
+                        type="text"
+                        id="diplome"
+                        value={doctor.diplome || ""}
+                        disabled
+                        className="w-full bg-gray-100 rounded-md border px-4 py-3"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="grade" className="block text-sm font-medium text-gray-700">
+                        Grade/Rank
+                      </label>
+                      <input
+                        type="text"
+                        id="grade"
+                        value={doctor.grade || ""}
+                        disabled
+                        className="w-full bg-gray-100 rounded-md border px-4 py-3"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="annee_experience" className="block text-sm font-medium text-gray-700">
+                      Years of Experience
+                    </label>
+                    <input
+                      type="number"
+                      id="annee_experience"
+                      value={doctor.annee_experience || 0}
+                      disabled
+                      min="0"
+                      className="w-full bg-gray-100 rounded-md border px-4 py-3"
                     />
                   </div>
 

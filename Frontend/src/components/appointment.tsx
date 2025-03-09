@@ -1,6 +1,6 @@
 import "../../public/tailwind.css"
 import Image from "next/image"
-import Header from "../components/header"
+import Header from "./patient/header"
 import Footer from "../components/footer"
 
 export default function AppointmentForm() {
