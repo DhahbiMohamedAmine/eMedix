@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useCallback } from "react"
 import { ChevronLeft, ChevronRight, User } from "lucide-react"
 import Header from "./header"
@@ -11,18 +10,8 @@ import PatientDetailsPopup from "./patientdetails"
 import AppointmentNotePopup from "./note"
 import axios from "axios"
 
-// Remove the unused Appointment interface or use it
-// interface Appointment {
-//   id: string
-//   date: string // or Date if it's already a Date object
-//   patient_id: string
-//   medecin_id: string
-//   note?: string
-//   status: string // Optional field
-// }
-
 export default function AppointmentCalendar() {
-  // Replace the static appointments array
+  // Define the Appointment interface
   interface Appointment {
     id: number
     patient_id: number
@@ -30,6 +19,13 @@ export default function AppointmentCalendar() {
     date: string
     status: string
     note: string | null
+  }
+
+  // Define the Patient interface
+  interface Patient {
+    nom: string
+    prenom: string
+    // Add other patient fields as needed
   }
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -44,7 +40,8 @@ export default function AppointmentCalendar() {
   const [isNotePopupOpen, setIsNotePopupOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
 
-  const [patientNames, setPatientNames] = useState<Record<number, string>>({})
+  // Add a new state for storing patient information
+  const [patients, setPatients] = useState<Record<number, Patient>>({})
 
   // Fetch medecinId from localStorage
   useEffect(() => {
@@ -56,7 +53,7 @@ export default function AppointmentCalendar() {
       }
     }
   }, [])
-  console.log(medecinId)
+
   // Fetch appointments when medecinId is set
   useEffect(() => {
     if (!medecinId) return
@@ -66,45 +63,40 @@ export default function AppointmentCalendar() {
         const response = await axios.get(`http://localhost:8000/appointments/medecin/${medecinId}`)
         setAppointments(response.data) // Store the list of appointments
       } catch (err) {
-        // Remove the unused error variable
         console.error(err)
       }
     }
 
     fetchAppointments()
   }, [medecinId])
-  console.log(appointments)
 
-  // Fetch patient details when appointments change
-  useEffect(() => {
-    const fetchPatientDetails = async () => {
-      const newPatientNames: Record<number, string> = {}
-
-      // Create a Set of unique patient IDs to avoid duplicate requests
-      const uniquePatientIds = new Set(appointments.map((app) => app.patient_id))
-
-      // Fetch details for each unique patient
-      for (const patientId of uniquePatientIds) {
-        try {
-          const response = await axios.get(`http://localhost:8000/users/patient/${patientId}`)
-          if (response.data && response.data.name) {
-            newPatientNames[patientId] = response.data.name
-          } else {
-            newPatientNames[patientId] = `Patient #${patientId}`
-          }
-        } catch (err) {
-          console.error(`Error fetching details for patient ${patientId}:`, err)
-          newPatientNames[patientId] = `Patient #${patientId}`
-        }
+  // Function to fetch patient information
+  const fetchPatientInfo = async (patientId: number) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/users/patient/${patientId}`)
+      if (response.data) {
+        setPatients((prev) => ({
+          ...prev,
+          [patientId]: response.data,
+        }))
       }
-
-      setPatientNames(newPatientNames)
+    } catch (err) {
+      console.error(`Error fetching patient ${patientId} info:`, err)
     }
+  }
 
-    if (appointments.length > 0) {
-      fetchPatientDetails()
-    }
-  }, [appointments])
+  // Fetch patient information when appointments change
+  useEffect(() => {
+    // Get unique patient IDs from appointments
+    const patientIds = [...new Set(appointments.map((app) => app.patient_id))]
+
+    // Fetch info for each patient
+    patientIds.forEach((patientId) => {
+      if (!patients[patientId]) {
+        fetchPatientInfo(patientId)
+      }
+    })
+  }, [appointments, patients])
 
   const handleAccept = async (appointmentId: number) => {
     console.log("Attempting to confirm appointment:", appointmentId)
@@ -387,15 +379,11 @@ export default function AppointmentCalendar() {
     }
   }
 
-  // Function to check if appointment date is in the past
-  const isAppointmentInPast = (appointmentDate: string) => {
+  // Add a helper function to check if a date is in the past
+  const isDateInPast = (date: Date): boolean => {
     const today = new Date()
-    today.setHours(0, 0, 0, 0) // Reset time to start of day for fair comparison
-
-    const appDate = new Date(appointmentDate)
-    appDate.setHours(0, 0, 0, 0) // Reset time to start of day
-
-    return appDate < today
+    today.setHours(0, 0, 0, 0) // Reset time part for date comparison
+    return date < today
   }
 
   return (
@@ -452,10 +440,8 @@ export default function AppointmentCalendar() {
                     }}
                   >
                     <div
-                      className={`
-                      w-10 h-10 mx-auto flex items-center justify-center rounded-full
-                      ${isSelected ? "bg-teal-500 text-white" : isTodayDate ? "border-2 border-teal-500" : "hover:bg-gray-100"}
-                    `}
+                      className={`w-10 h-10 mx-auto flex items-center justify-center rounded-full
+                      ${isSelected ? "bg-teal-500 text-white" : isTodayDate ? "border-2 border-teal-500" : "hover:bg-gray-100"}`}
                     >
                       {date.getDate()}
                     </div>
@@ -529,6 +515,8 @@ export default function AppointmentCalendar() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {getAppointmentsForDate(selectedDate).map((appointment) => {
                           const appointmentDate = new Date(appointment.date)
+                          const isPastAppointment = isDateInPast(appointmentDate)
+
                           return (
                             <tr key={appointment.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -538,7 +526,9 @@ export default function AppointmentCalendar() {
                                 {appointmentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {patientNames[appointment.patient_id] || `Patient #${appointment.patient_id}`}
+                                {patients[appointment.patient_id]
+                                  ? `${patients[appointment.patient_id].prenom} ${patients[appointment.patient_id].nom}`
+                                  : `Patient #${appointment.patient_id}`}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
@@ -547,112 +537,120 @@ export default function AppointmentCalendar() {
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex items-center space-x-2">
-                                  {appointment.status === "waiting for medecin confirmation" ? (
-                                    <>
-                                      <button
-                                        onClick={() => handleAccept(appointment.id)}
-                                        className="rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600 transition-colors"
-                                      >
-                                        Accept
-                                      </button>
-                                      <button
-                                        onClick={(event) => handleEdit(appointment, event)}
-                                        className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                        className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
-                                      >
-                                        <User className="w-3 h-3 mr-1" />
-                                        User Details
-                                      </button>
-                                      {isAppointmentInPast(appointment.date) && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleOpenNotePopup(appointment)
-                                          }}
-                                          className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                                        >
-                                          Add Note
-                                        </button>
-                                      )}
-                                    </>
-                                  ) : appointment.status === "waiting for patient confirmation" ? (
-                                    <>
-                                      <button
-                                        onClick={(event) => handleEdit(appointment, event)}
-                                        className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                        className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
-                                      >
-                                        <User className="w-3 h-3 mr-1" />
-                                        User Details
-                                      </button>
-                                      {isAppointmentInPast(appointment.date) && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleOpenNotePopup(appointment)
-                                          }}
-                                          className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                                        >
-                                          Add Note
-                                        </button>
-                                      )}
-                                    </>
-                                  ) : appointment.status === "confirmed" ? (
-                                    <>
-                                      <button
-                                        onClick={(event) => handleEdit(appointment, event)}
-                                        className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                        className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
-                                      >
-                                        <User className="w-3 h-3 mr-1" />
-                                        User Details
-                                      </button>
-                                      {isAppointmentInPast(appointment.date) && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleOpenNotePopup(appointment)
-                                          }}
-                                          className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                                        >
-                                          Add Note
-                                        </button>
-                                      )}
-                                    </>
+                                  {isPastAppointment ? (
+                                    // Only show Add Note button for past appointments
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenNotePopup(appointment)
+                                      }}
+                                      className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                    >
+                                      Add Note
+                                    </button>
                                   ) : (
+                                    // Show all buttons for current or future appointments
                                     <>
-                                      <button
-                                        onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                        className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
-                                      >
-                                        <User className="w-3 h-3 mr-1" />
-                                        User Details
-                                      </button>
-                                      {isAppointmentInPast(appointment.date) && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleOpenNotePopup(appointment)
-                                          }}
-                                          className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                                        >
-                                          Add Note
-                                        </button>
+                                      {appointment.status === "waiting for medecin confirmation" ? (
+                                        <>
+                                          <button
+                                            onClick={() => handleAccept(appointment.id)}
+                                            className="rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600 transition-colors"
+                                          >
+                                            Accept
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleEdit(appointment, event)}
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      ) : appointment.status === "waiting for patient confirmation" ? (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleEdit(appointment, event)}
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      ) : appointment.status === "confirmed" ? (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleEdit(appointment, event)}
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
                                       )}
                                     </>
                                   )}
