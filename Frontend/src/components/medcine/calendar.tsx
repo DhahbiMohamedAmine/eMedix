@@ -1,23 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import Header from "../header"
+import type React from "react"
+import { useState, useEffect, useCallback } from "react"
+import { ChevronLeft, ChevronRight, User } from "lucide-react"
+import Header from "./header"
 import Footer from "../footer"
-import VerificationPopup from "./appointmentcancel"
 import EditAppointmentForm from "./appointmentedit"
+import PatientDetailsPopup from "./patientdetails"
+import AppointmentNotePopup from "./note"
 import axios from "axios"
 
-interface Appointment {
-  id: string
-  date: string // or Date if it's already a Date object
-  patient_id: string
-  medecin_id: string
-  note?: string
-  status: string // Optional field
-}
 export default function AppointmentCalendar() {
-  // Replace the static appointments array
+  // Define the Appointment interface
   interface Appointment {
     id: number
     patient_id: number
@@ -26,14 +20,28 @@ export default function AppointmentCalendar() {
     status: string
     note: string | null
   }
-  
-  
+
+  // Define the Patient interface
+  interface Patient {
+    nom: string
+    prenom: string
+    // Add other patient fields as needed
+  }
+
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [medecinId, setMedecinId] = useState<string | null>(null)
-  const [selectedAppointment, setSelectedAppointment] = useState<{ id: number; date: string } | null>(null)
-  const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
   const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null)
+
+  // New state for patient details popup
+  const [isPatientDetailsOpen, setIsPatientDetailsOpen] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null)
+
+  const [isNotePopupOpen, setIsNotePopupOpen] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+
+  // Add a new state for storing patient information
+  const [patients, setPatients] = useState<Record<number, Patient>>({})
 
   // Fetch medecinId from localStorage
   useEffect(() => {
@@ -44,9 +52,8 @@ export default function AppointmentCalendar() {
         setMedecinId(parsedData.medecin_id)
       }
     }
-    
   }, [])
-console.log(medecinId)
+
   // Fetch appointments when medecinId is set
   useEffect(() => {
     if (!medecinId) return
@@ -56,40 +63,66 @@ console.log(medecinId)
         const response = await axios.get(`http://localhost:8000/appointments/medecin/${medecinId}`)
         setAppointments(response.data) // Store the list of appointments
       } catch (err) {
-        setError("Error fetching appointments.")
         console.error(err)
-      } 
+      }
     }
 
     fetchAppointments()
   }, [medecinId])
-console.log(appointments)
 
-const handleAccept = async (appointmentId: number) => {
-  console.log("Attempting to confirm appointment:", appointmentId);
-
-  try {
-    const response = await axios.put(`http://localhost:8000/appointments/mconfirm/${appointmentId}`, {
-      status: "confirmed",
-    });
-
-    console.log("Response from server:", response.data);
-
-    setAppointments((prevAppointments) =>
-      prevAppointments.map((a) =>
-        a.id === appointmentId ? { ...a, status: "confirmed" } : a
-      )
-    );
-
-    alert("Appointment confirmed successfully!");
-  } catch (error) {
-    console.error("Failed to confirm appointment:", );
+  // Function to fetch patient information
+  const fetchPatientInfo = async (patientId: number) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/users/patient/${patientId}`)
+      if (response.data) {
+        setPatients((prev) => ({
+          ...prev,
+          [patientId]: response.data,
+        }))
+      }
+    } catch (err) {
+      console.error(`Error fetching patient ${patientId} info:`, err)
+    }
   }
-};
 
-  const handleReject = (id: number, date: string) => {
-    setSelectedAppointment({ id, date })
-    setIsPopupOpen(true)
+  // Fetch patient information when appointments change
+  useEffect(() => {
+    // Get unique patient IDs from appointments
+    const patientIds = [...new Set(appointments.map((app) => app.patient_id))]
+
+    // Fetch info for each patient
+    patientIds.forEach((patientId) => {
+      if (!patients[patientId]) {
+        fetchPatientInfo(patientId)
+      }
+    })
+  }, [appointments, patients])
+
+  const handleAccept = async (appointmentId: number) => {
+    console.log("Attempting to confirm appointment:", appointmentId)
+
+    try {
+      const response = await axios.put(`http://localhost:8000/appointments/mconfirm/${appointmentId}`, {
+        status: "confirmed",
+      })
+
+      console.log("Response from server:", response.data)
+
+      setAppointments((prevAppointments) =>
+        prevAppointments.map((a) => (a.id === appointmentId ? { ...a, status: "confirmed" } : a)),
+      )
+
+      alert("Appointment confirmed successfully!")
+    } catch (error) {
+      console.error("Failed to confirm appointment:" + error)
+    }
+  }
+
+  // New function to view patient details
+  const handleViewPatientDetails = (patientId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    setSelectedPatientId(patientId)
+    setIsPatientDetailsOpen(true)
   }
 
   const handleEdit = (appointment: Appointment, event: React.MouseEvent) => {
@@ -98,36 +131,6 @@ const handleAccept = async (appointmentId: number) => {
     setIsEditFormOpen(true)
   }
 
-  const confirmReject = async (appointmentId: number) => {
-    try {
-      // Make the API call to update the status
-      const response = await fetch(`http://localhost:8000/appointments/cancelappointment/${appointmentId}`, {
-        method: "PUT",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(`Failed to cancel appointment: ${errorData.message || errorData.error || "Unknown error"}`)
-      }
-
-      // Optionally, update the local state to reflect the cancelled status
-      setAppointments((prevAppointments) =>
-        prevAppointments.map((app) => (app.id === appointmentId ? { ...app, status: "cancelled" } : app)),
-      )
-
-      console.log(`Cancelled appointment ${appointmentId}`)
-      setIsPopupOpen(false)
-      setSelectedAppointment(null)
-    } catch (error) {
-      console.error("Error cancelling appointment:", error)
-      alert(`Error cancelling appointment: ${error instanceof Error ? error.message : "Unknown error"}`)
-    }
-  }
-
-  const cancelReject = () => {
-    setIsPopupOpen(false)
-    setSelectedAppointment(null)
-  }
   const saveAppointment = async (updatedAppointment: Appointment) => {
     try {
       // Make API call to update the appointment using the correct endpoint
@@ -164,12 +167,6 @@ const handleAccept = async (appointmentId: number) => {
     setAppointmentToEdit(null)
   }
 
-  // Function to split date and time
-  const splitDateTime = (dateTimeString: string) => {
-    const [date, time] = dateTimeString.split("T")
-    return { date, time: time.slice(0, 5) } // Assuming time is in HH:MM format
-  }
-
   const [currentDate, setCurrentDate] = useState(new Date()) // Today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -189,12 +186,8 @@ const handleAccept = async (appointmentId: number) => {
     }
   }, [])
 
-  useEffect(() => {
-    fetchAppointmentsByDate(selectedDate)
-  }, [selectedDate]) // Added selectedDate to dependencies
-
-  // Fetch appointments for a specific date
-  const fetchAppointmentsByDate = async (date: Date) => {
+  // Fetch appointments for a specific date - wrapped in useCallback to use in dependency array
+  const fetchAppointmentsByDate = useCallback(async (date: Date) => {
     setIsLoading(true)
     setError(null)
 
@@ -279,7 +272,11 @@ const handleAccept = async (appointmentId: number) => {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, []) // Empty dependency array since it doesn't depend on any state
+
+  useEffect(() => {
+    fetchAppointmentsByDate(selectedDate)
+  }, [selectedDate, fetchAppointmentsByDate]) // Added fetchAppointmentsByDate to dependencies
 
   // Get appointments for a specific date
   const getAppointmentsForDate = (date: Date) => {
@@ -368,6 +365,27 @@ const handleAccept = async (appointmentId: number) => {
     return date.toDateString() === today.toDateString()
   }
 
+  const handleOpenNotePopup = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setIsNotePopupOpen(true)
+  }
+
+  const handleNoteUpdate = async (appointmentId: number, newNote: string) => {
+    try {
+      // Update the appointments state with the new note
+      setAppointments(appointments.map((app) => (app.id === appointmentId ? { ...app, note: newNote } : app)))
+    } catch (error) {
+      console.error("Error updating note:", error)
+    }
+  }
+
+  // Add a helper function to check if a date is in the past
+  const isDateInPast = (date: Date): boolean => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time part for date comparison
+    return date < today
+  }
+
   return (
     <div className="flex flex-col h-screen">
       {/* Fixed Header */}
@@ -422,10 +440,8 @@ const handleAccept = async (appointmentId: number) => {
                     }}
                   >
                     <div
-                      className={`
-                      w-10 h-10 mx-auto flex items-center justify-center rounded-full
-                      ${isSelected ? "bg-teal-500 text-white" : isTodayDate ? "border-2 border-teal-500" : "hover:bg-gray-100"}
-                    `}
+                      className={`w-10 h-10 mx-auto flex items-center justify-center rounded-full
+                      ${isSelected ? "bg-teal-500 text-white" : isTodayDate ? "border-2 border-teal-500" : "hover:bg-gray-100"}`}
                     >
                       {date.getDate()}
                     </div>
@@ -480,7 +496,7 @@ const handleAccept = async (appointmentId: number) => {
                             scope="col"
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
-                            Patient ID
+                            Patient Name
                           </th>
                           <th
                             scope="col"
@@ -499,6 +515,8 @@ const handleAccept = async (appointmentId: number) => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {getAppointmentsForDate(selectedDate).map((appointment) => {
                           const appointmentDate = new Date(appointment.date)
+                          const isPastAppointment = isDateInPast(appointmentDate)
+
                           return (
                             <tr key={appointment.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -508,7 +526,9 @@ const handleAccept = async (appointmentId: number) => {
                                 {appointmentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {appointment.patient_id}
+                                {patients[appointment.patient_id]
+                                  ? `${patients[appointment.patient_id].prenom} ${patients[appointment.patient_id].nom}`
+                                  : `Patient #${appointment.patient_id}`}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
@@ -516,46 +536,126 @@ const handleAccept = async (appointmentId: number) => {
                                 </span>
                               </td>
                               <td className="px-4 py-4">
-  {appointment.status === "waiting for medecin confirmation" ? (
-    <>
-      <button
-        onClick={() => handleAccept(appointment.id)}
-        className="mr-2 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600"
-      >
-        Accept
-      </button>
-      <button
-        onClick={() => handleReject(appointment.id, appointment.date)}
-        className="rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600"
-      >
-        Reject
-      </button>
-    </>
-  ) : appointment.status === "waiting for patient confirmation" ? (
-    <>
-      <button
-        onClick={(event) => handleEdit(appointment, event)}
-        className="mr-2 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-600"
-      >
-        Edit
-      </button>
-      <button
-        onClick={() => handleReject(appointment.id, appointment.date)}
-        className="rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600"
-      >
-        Reject
-      </button>
-    </>
-  ) : appointment.status === "confirmed" ? (
-    <button
-      onClick={(event) => handleEdit(appointment, event)}
-      className="rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-600"
-    >
-      Edit
-    </button>
-  ) : null}
-</td>
-
+                                <div className="flex items-center space-x-2">
+                                  {isPastAppointment ? (
+                                    // Only show Add Note button for past appointments
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenNotePopup(appointment)
+                                      }}
+                                      className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                    >
+                                      Add Note
+                                    </button>
+                                  ) : (
+                                    // Show all buttons for current or future appointments
+                                    <>
+                                      {appointment.status === "waiting for medecin confirmation" ? (
+                                        <>
+                                          <button
+                                            onClick={() => handleAccept(appointment.id)}
+                                            className="rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600 transition-colors"
+                                          >
+                                            Accept
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleEdit(appointment, event)}
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      ) : appointment.status === "waiting for patient confirmation" ? (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleEdit(appointment, event)}
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      ) : appointment.status === "confirmed" ? (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleEdit(appointment, event)}
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                          >
+                                            Add Note
+                                          </button>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
                             </tr>
                           )
                         })}
@@ -568,23 +668,30 @@ const handleAccept = async (appointmentId: number) => {
           </div>
         </div>
       </main>
-<VerificationPopup
-              isOpen={isPopupOpen}
-              appointmentId={selectedAppointment?.id || null}
-              appointmentName={selectedAppointment?.date || ""}
-              onConfirm={confirmReject}
-              onCancel={cancelReject}
-            />
-      <EditAppointmentForm
-              isOpen={isEditFormOpen}
-              appointment={appointmentToEdit}
-              onSave={saveAppointment}
-              onCancel={cancelEdit}
-            />
-      {/* Fixed Footer */}
-      
-      <div className="flex-shrink-0">
 
+      {/* Patient Details Popup */}
+      <PatientDetailsPopup
+        isOpen={isPatientDetailsOpen}
+        patientId={selectedPatientId}
+        onClose={() => setIsPatientDetailsOpen(false)}
+      />
+
+      {/* Edit Appointment Form */}
+      <EditAppointmentForm
+        isOpen={isEditFormOpen}
+        appointment={appointmentToEdit}
+        onSave={saveAppointment}
+        onCancel={cancelEdit}
+      />
+      <AppointmentNotePopup
+        isOpen={isNotePopupOpen}
+        appointment={selectedAppointment}
+        onClose={() => setIsNotePopupOpen(false)}
+        onNoteUpdate={handleNoteUpdate}
+      />
+
+      {/* Fixed Footer */}
+      <div className="flex-shrink-0">
         <Footer />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import Header from "../components/header"
+import Header from "./patient/header"
 import Footer from "../components/footer"
 import "../../public/tailwind.css"
 import { useState } from "react"

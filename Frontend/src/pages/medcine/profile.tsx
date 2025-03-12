@@ -1,4 +1,4 @@
-import Profile from "../../components/medcine/profile"
+import Profile from "../../components/medecin/profile"
 
 export default function ProfilePage() {
   return <Profile />

@@ -127,4 +127,3 @@ export default function EditAppointmentForm({ isOpen, appointment, onSave, onCan
     </div>
   )
 }
-

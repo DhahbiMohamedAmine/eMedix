@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import Header from "@/components/header"
+import Header from "@/components/patient/header"
 import Footer from "@/components/footer"
 import VerificationPopup from "./appointmentcancel"
 import EditAppointmentForm from "./appointmentedit"
