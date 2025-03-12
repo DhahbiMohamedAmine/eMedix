@@ -12,8 +12,12 @@ from datetime import date, datetime, timedelta
 from typing import List
 router = APIRouter()
 
-@router.post("/addappointment", response_model=AppointmentResponse)
-async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/addappointment/{medecin_id}", response_model=AppointmentResponse)
+async def add_appointment(
+    medecin_id: int,
+    appointment: AppointmentRequest,
+    db: AsyncSession = Depends(get_db),
+):
     try:
         # Check if the patient exists
         patient_query = select(PatientModel).filter(PatientModel.id == appointment.patient_id)
@@ -24,7 +28,7 @@ async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = De
             raise HTTPException(status_code=404, detail="Patient not found")
 
         # Check if the medic exists
-        medic_query = select(Medecin).filter(Medecin.id == appointment.medecin_id)
+        medic_query = select(Medecin).filter(Medecin.id == medecin_id)
         medic_result = await db.execute(medic_query)
         medic = medic_result.scalar_one_or_none()
 
@@ -34,7 +38,7 @@ async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = De
         # Create a new appointment with status "en attente"
         new_appointment = AppointmentModel(
             patient_id=appointment.patient_id,
-            medecin_id=appointment.medecin_id,
+            medecin_id=medecin_id,
             date=appointment.date,
             status=appointment.status or "waiting for medecin confirmation",
             note=""
@@ -48,7 +52,6 @@ async def add_appointment(appointment: AppointmentRequest, db: AsyncSession = De
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating appointment: {e}")
-    
 
 
 @router.put("/pupdateappointment/{appointment_id}", response_model=AppointmentResponse)
