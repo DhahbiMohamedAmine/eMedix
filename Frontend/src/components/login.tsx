@@ -64,7 +64,7 @@ export default function Login() {
                 }),
               )
             }
-            router.push("/patient/profile")
+            router.push("/patient/doctorlist")
             break
           case "medecin":
             if (userData.medecin_id) {
