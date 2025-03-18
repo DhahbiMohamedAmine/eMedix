@@ -61,8 +61,8 @@ export default function HeaderComponent() {
           <Link href="/appointmentlist" className="text-white hover:text-blue-200">
             My appointments
           </Link>
-          <Link href="/patient/appointment" className="text-white hover:text-blue-200">
-            All doctors
+          <Link href="Calendar" className="text-white hover:text-blue-200">
+            Calendar
           </Link>
         </div>
 
@@ -88,7 +88,7 @@ export default function HeaderComponent() {
           {showDropdown && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
               <Link
-                href="/patient/profile"
+                href="profile"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                 onClick={() => setShowDropdown(false)}
               >

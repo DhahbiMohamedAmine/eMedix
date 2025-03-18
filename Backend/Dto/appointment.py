@@ -5,7 +5,6 @@ from typing import Optional
 # Model for creating an appointment (request body)
 class AppointmentRequest(BaseModel):
     patient_id: int
-    medecin_id: int
     date: datetime
     status: Optional[str] = "waiting for medecin confirmation"
     note: Optional[str] = None
