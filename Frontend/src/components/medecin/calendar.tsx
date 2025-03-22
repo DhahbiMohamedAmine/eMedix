@@ -9,6 +9,11 @@ import EditAppointmentForm from "./appointmentedit"
 import PatientDetailsPopup from "./patientdetails"
 import AppointmentNotePopup from "./note"
 import axios from "axios"
+import dayjs from "dayjs"
+import "dayjs/locale/en-gb"
+import localizedFormat from "dayjs/plugin/localizedFormat"
+dayjs.extend(localizedFormat)
+dayjs.locale("en-gb")
 
 export default function AppointmentCalendar() {
   // Define the Appointment interface
@@ -28,6 +33,17 @@ export default function AppointmentCalendar() {
     // Add other patient fields as needed
   }
 
+  // Add these interfaces after the existing interfaces
+  interface DoctorNotification {
+    appointmentId: number
+    type: "confirmed" | "modified" | "cancelled"
+    read: boolean
+    dismissed: boolean
+    timestamp: number
+    patientId: number
+    appointmentDate: string
+  }
+
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [medecinId, setMedecinId] = useState<string | null>(null)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
@@ -42,6 +58,9 @@ export default function AppointmentCalendar() {
 
   // Add a new state for storing patient information
   const [patients, setPatients] = useState<Record<number, Patient>>({})
+
+  // Add a state to track the highlighted appointment
+  const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<number | null>(null)
 
   // Fetch medecinId from localStorage
   useEffect(() => {
@@ -85,6 +104,72 @@ export default function AppointmentCalendar() {
     }
   }
 
+  // Update the loadNotifications function to only mark notifications as read when explicitly viewing them
+  const loadNotifications = () => {
+    try {
+      // We'll only mark notifications as read when the user explicitly views them
+      // by clicking on a notification, not automatically when loading the calendar page
+
+      // Check if we have a highlighted appointment ID from URL parameters
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search)
+        const highlightParam = urlParams.get("highlight")
+
+        if (highlightParam) {
+          // If we have a highlighted appointment, mark only that notification as read
+          const storedNotifications = localStorage.getItem("doctorAppointmentNotifications")
+          if (storedNotifications) {
+            const parsedNotifications = JSON.parse(storedNotifications) as DoctorNotification[]
+            const appointmentId = Number.parseInt(highlightParam, 10)
+
+            const updatedNotifications = parsedNotifications.map((n) =>
+              n.appointmentId === appointmentId ? { ...n, read: true } : n,
+            )
+
+            localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(updatedNotifications))
+
+            // Notify header component
+            window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error processing notifications:", error)
+    }
+  }
+
+  // Add this function after the loadNotifications function
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const dismissNotification = (appointmentId: number) => {
+    try {
+      // Get all notifications from localStorage
+      const storedNotifications = localStorage.getItem("doctorAppointmentNotifications")
+      if (!storedNotifications) return
+
+      const allNotifications = JSON.parse(storedNotifications) as DoctorNotification[]
+
+      // Update the specific notification
+      const updatedAllNotifications = allNotifications.map((n) =>
+        n.appointmentId === appointmentId ? { ...n, dismissed: true, read: true } : n,
+      )
+
+      // Save back to localStorage
+      localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(updatedAllNotifications))
+
+      // Update local state - filter out the dismissed notification
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const updatedLocalNotifications = [] // notifications.filter((n) => n.appointmentId !== appointmentId)
+      // setNotifications(updatedLocalNotifications)
+
+      console.log(`Dismissed notification for appointment ${appointmentId}`)
+
+      // Notify header component
+      window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+    } catch (error) {
+      console.error("Error dismissing notification:", error)
+    }
+  }
+
   // Fetch patient information when appointments change
   useEffect(() => {
     // Get unique patient IDs from appointments
@@ -97,6 +182,91 @@ export default function AppointmentCalendar() {
       }
     })
   }, [appointments, patients])
+
+  // Add this useEffect after the existing useEffects
+  useEffect(() => {
+    // Load notifications when component mounts
+    loadNotifications()
+
+    // Set up event listener for storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "doctorAppointmentNotifications") {
+        loadNotifications()
+      }
+    }
+
+    // Set up custom event listener for same-window updates
+    const handleCustomEvent = () => {
+      loadNotifications()
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+    window.addEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
+
+    // Poll for new notifications every 5 seconds
+    const interval = setInterval(loadNotifications, 5000)
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+      window.removeEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
+      clearInterval(interval)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Add this useEffect to get the highlighted appointment ID from URL or localStorage
+  useEffect(() => {
+    // Check URL parameters for highlighted appointment
+    if (typeof window !== "undefined") {
+      console.log("Checking URL parameters for highlighted appointment and date")
+      const urlParams = new URLSearchParams(window.location.search)
+      const highlightParam = urlParams.get("highlight")
+      const dateParam = urlParams.get("date")
+
+      console.log("URL parameters:", { highlight: highlightParam, date: dateParam })
+
+      if (highlightParam) {
+        const highlightId = Number.parseInt(highlightParam, 10)
+        console.log("Setting highlighted appointment ID from URL:", highlightId)
+        setHighlightedAppointmentId(highlightId)
+
+        // After a delay, try to scroll to the highlighted appointment
+        setTimeout(() => {
+          const highlightedElement = document.querySelector(`[data-appointment-id="${highlightId}"]`)
+          if (highlightedElement) {
+            console.log("Scrolling to highlighted appointment element")
+            highlightedElement.scrollIntoView({ behavior: "smooth", block: "center" })
+          } else {
+            console.log("Could not find highlighted appointment element")
+          }
+        }, 1000)
+      } else {
+        // Check localStorage for highlighted appointment
+        const storedHighlight = localStorage.getItem("highlightedAppointmentId")
+        if (storedHighlight) {
+          const highlightId = Number.parseInt(storedHighlight, 10)
+          console.log("Setting highlighted appointment ID from localStorage:", highlightId)
+          setHighlightedAppointmentId(highlightId)
+          // Clear it after setting
+          localStorage.removeItem("highlightedAppointmentId")
+        }
+      }
+
+      // Check URL for date parameter
+      if (dateParam) {
+        try {
+          const paramDate = new Date(dateParam)
+          if (!isNaN(paramDate.getTime())) {
+            console.log("Setting selected date from URL:", paramDate.toISOString())
+            setSelectedDate(paramDate)
+            setCurrentDate(paramDate)
+          }
+        } catch (e) {
+          console.error("Invalid date parameter:", e)
+        }
+      }
+    }
+  }, [])
 
   const handleAccept = async (appointmentId: number) => {
     console.log("Attempting to confirm appointment:", appointmentId)
@@ -516,9 +686,30 @@ export default function AppointmentCalendar() {
                         {getAppointmentsForDate(selectedDate).map((appointment) => {
                           const appointmentDate = new Date(appointment.date)
                           const isPastAppointment = isDateInPast(appointmentDate)
+                          const isHighlighted = appointment.id === highlightedAppointmentId
 
                           return (
-                            <tr key={appointment.id} className="hover:bg-gray-50">
+                            <tr
+                              key={appointment.id}
+                              data-appointment-id={appointment.id}
+                              className={`transition-all duration-300 ${
+                                isHighlighted
+                                  ? "bg-blue-50 hover:bg-blue-100 ring-2 ring-blue-300 relative"
+                                  : "hover:bg-gray-50"
+                              }`}
+                              ref={(el) => {
+                                // Scroll to the highlighted appointment
+                                if (isHighlighted && el) {
+                                  setTimeout(() => {
+                                    console.log("Scrolling to highlighted appointment:", appointment.id)
+                                    el.scrollIntoView({ behavior: "smooth", block: "center" })
+                                  }, 500)
+                                }
+                              }}
+                            >
+                              {isHighlighted && (
+                                <td className="absolute -left-2 top-0 bottom-0 w-1 bg-blue-500" aria-hidden="true"></td>
+                              )}
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {appointmentDate.toLocaleDateString()}
                               </td>
@@ -531,7 +722,17 @@ export default function AppointmentCalendar() {
                                   : `Patient #${appointment.patient_id}`}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    isHighlighted
+                                      ? appointment.status === "confirmed"
+                                        ? "bg-green-200 text-green-800"
+                                        : appointment.status === "cancelled"
+                                          ? "bg-red-200 text-red-800"
+                                          : "bg-amber-200 text-amber-800"
+                                      : "bg-orange-100 text-orange-800"
+                                  }`}
+                                >
                                   {appointment.status}
                                 </span>
                               </td>
