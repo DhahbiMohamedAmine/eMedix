@@ -52,6 +52,24 @@ export default function EditAppointmentForm({ isOpen, appointment, onSave, onCan
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0]
+
+    // Validate date is not in the past
+    if (formData.date && formData.date < today) {
+      alert("Please select a future date. Past dates are not allowed.")
+      return
+    }
+
+    // Validate time is between 8:00 and 17:00
+    const timeValue = time.split(":").map(Number)
+    const hours = timeValue[0]
+
+    if (hours < 8 || hours >= 17) {
+      alert("Please select a time between 8:00 AM and 5:00 PM.")
+      return
+    }
+
     // Ensure correct date-time format: "YYYY-MM-DDTHH:mm:ss"
     const combinedDateTime = `${formData.date}T${time}:00`
 
@@ -84,6 +102,7 @@ export default function EditAppointmentForm({ isOpen, appointment, onSave, onCan
               name="date"
               value={formData.date || ""}
               onChange={handleChange}
+              min={new Date().toISOString().split("T")[0]} // Set minimum date to today
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-[#2DD4BF] focus:outline-none focus:ring-[#2DD4BF]"
               required
             />
@@ -99,12 +118,13 @@ export default function EditAppointmentForm({ isOpen, appointment, onSave, onCan
               name="time"
               value={time}
               onChange={handleChange}
+              min="08:00"
+              max="17:00"
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-[#2DD4BF] focus:outline-none focus:ring-[#2DD4BF]"
               required
             />
+            <p className="mt-1 text-xs text-gray-500">Business hours: 8:00 AM - 5:00 PM</p>
           </div>
-
-
 
           <div className="flex justify-end space-x-3">
             <button

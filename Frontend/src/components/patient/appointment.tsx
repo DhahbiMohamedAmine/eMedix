@@ -2,22 +2,48 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation" // Import useSearchParams
+import { useSearchParams, useRouter } from "next/navigation" // Import useRouter for navigation
 import Image from "next/image"
 import Header from "./header"
 import Footer from "../../components/footer"
+import { AlertCircle, CheckCircle, X } from "lucide-react"
 
 interface PatientData {
   patient_id: number
   date_naissance: string
 }
 
+interface Toast {
+  id: string
+  message: string
+  type: "success" | "error" | "warning"
+}
+
 export default function AppointmentForm() {
   const searchParams = useSearchParams()
-const medecin_id = searchParams?.get("doctor")// Extract doctor ID from URL
+  const router = useRouter() // Initialize router for navigation
+  const medecin_id = searchParams?.get("doctor") // Extract doctor ID from URL
 
   const [patientId, setPatientId] = useState<number | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>("")
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const [isRedirecting, setIsRedirecting] = useState(false)
+
+  // Function to show toast notifications
+  const showToast = (message: string, type: "success" | "error" | "warning") => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id))
+    }, 5000)
+  }
+
+  // Function to dismiss a toast
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id))
+  }
 
   useEffect(() => {
     // Get and parse patientData from localStorage
@@ -32,33 +58,62 @@ const medecin_id = searchParams?.get("doctor")// Extract doctor ID from URL
     }
   }, [])
 
+  // Effect to handle redirection after successful appointment
+  useEffect(() => {
+    if (isRedirecting) {
+      // Wait for the toast to be visible for a moment before redirecting
+      const redirectTimer = setTimeout(() => {
+        router.push("/patient/appointmentlist")
+      }, 1500)
+
+      return () => clearTimeout(redirectTimer)
+    }
+  }, [isRedirecting, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  
+    e.preventDefault()
+
     if (!patientId) {
-      alert("Patient ID not found. Please log in again.");
-      return;
+      showToast("Patient ID not found. Please log in again.", "error")
+      return
     }
-  
+
     if (!selectedDate) {
-      alert("Please select a date for your appointment.");
-      return;
+      showToast("Please select a date for your appointment.", "warning")
+      return
     }
-  
+
     if (!medecin_id) {
-      alert("Doctor ID is missing from the URL.");
-      return;
+      showToast("Doctor ID is missing from the URL.", "error")
+      return
     }
-  
-    const formattedDate = new Date(selectedDate).toISOString().split(".")[0];
-  
+
+    // Validate that the date is not in the past
+    const selectedDateTime = new Date(selectedDate)
+    const now = new Date()
+
+    if (selectedDateTime < now) {
+      showToast("Please select a future date. Past dates are not allowed.", "warning")
+      return
+    }
+
+    // Validate that the time is between 8:00 and 17:00
+    const hours = selectedDateTime.getHours()
+
+    if (hours < 8 || hours >= 17) {
+      showToast("Please select a time between 8:00 AM and 5:00 PM (business hours).", "warning")
+      return
+    }
+
+    const formattedDate = new Date(selectedDate).toISOString().split(".")[0]
+
     const appointmentData = {
       patient_id: patientId,
       date: formattedDate,
-    };
-  
-    console.log("Sending appointment data:", appointmentData);
-  
+    }
+
+    console.log("Sending appointment data:", appointmentData)
+
     try {
       const response = await fetch(`http://localhost:8000/appointments/addappointment/${medecin_id}`, {
         method: "POST",
@@ -66,25 +121,30 @@ const medecin_id = searchParams?.get("doctor")// Extract doctor ID from URL
           "Content-Type": "application/json",
         },
         body: JSON.stringify(appointmentData),
-      });
-  
-      console.log("Response status:", response.status);
-      const responseData = await response.json().catch(() => null);
-      console.log("Response data:", responseData);
-  
+      })
+
+      console.log("Response status:", response.status)
+      const responseData = await response.json().catch(() => null)
+      console.log("Response data:", responseData)
+
       if (!response.ok) {
-        throw new Error(responseData?.message || "Failed to schedule appointment.");
+        throw new Error(responseData?.message || "Failed to schedule appointment.")
       }
-  
-      alert("Appointment scheduled successfully!");
-      setSelectedDate("");
+
+      showToast("Appointment scheduled successfully! Redirecting to appointments list...", "success")
+      setSelectedDate("")
+      setIsRedirecting(true) // Set redirecting state to true to trigger the navigation
     } catch (error) {
-      console.error("Error submitting appointment:", error);
-      alert( "An error occurred. Please try again.");
+      console.error("Error submitting appointment:", error)
+      showToast("An error occurred. Please try again.", "error")
     }
-  };
-  
-  
+  }
+
+  // Get current date and time in the format required for min attribute
+  const getCurrentDateTime = () => {
+    const now = new Date()
+    return now.toISOString().slice(0, 16) // Format: YYYY-MM-DDTHH:MM
+  }
 
   return (
     <main className="w-full bg-gray-100 min-h-screen">
@@ -97,7 +157,13 @@ const medecin_id = searchParams?.get("doctor")// Extract doctor ID from URL
 
           <div className="grid gap-8 md:grid-cols-2">
             <div className="relative w-full h-full overflow-hidden rounded-l-lg">
-              <Image src="/images/cap1.png" alt="Medical appointment illustration" fill style={{ objectFit: "cover" }} priority />
+              <Image
+                src="/images/cap1.png"
+                alt="Medical appointment illustration"
+                fill
+                style={{ objectFit: "cover" }}
+                priority
+              />
             </div>
 
             <div className="p-8 md:p-12">
@@ -113,23 +179,61 @@ const medecin_id = searchParams?.get("doctor")// Extract doctor ID from URL
                     type="datetime-local"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
+                    min={getCurrentDateTime()}
                     className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-[#2DD4BF] focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/20"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Heures d ouverture: 8:00 - 17:00, dates futures uniquement
+                  </p>
                 </div>
 
                 <button
                   type="submit"
                   className="w-full rounded-md bg-[#2DD4BF] px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-[#2DD4BF]/90 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/20 active:bg-[#2DD4BF]/80"
+                  disabled={isRedirecting}
                 >
-                  Soumettre
+                  {isRedirecting ? "Redirection en cours..." : "Soumettre"}
                 </button>
               </form>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-center justify-between rounded-lg p-4 shadow-lg transition-all duration-300 animate-in slide-in-from-right-5 ${
+              toast.type === "success"
+                ? "bg-green-50 text-green-800 border-l-4 border-green-500"
+                : toast.type === "error"
+                  ? "bg-red-50 text-red-800 border-l-4 border-red-500"
+                  : "bg-amber-50 text-amber-800 border-l-4 border-amber-500"
+            }`}
+            style={{ minWidth: "320px", maxWidth: "420px" }}
+          >
+            <div className="flex items-center gap-3">
+              {toast.type === "success" ? (
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              ) : toast.type === "error" ? (
+                <AlertCircle className="h-5 w-5 text-red-500" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+              )}
+              <p className="text-sm font-medium">{toast.message}</p>
+            </div>
+            <button onClick={() => dismissToast(toast.id)} className="ml-4 rounded-full p-1 hover:bg-gray-200">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       <Footer />
     </main>
   )
 }
+

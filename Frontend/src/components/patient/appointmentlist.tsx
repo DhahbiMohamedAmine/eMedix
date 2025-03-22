@@ -547,7 +547,7 @@ export default function AppointmentList() {
     <main className="w-full bg-gray-100 min-h-screen">
       <Header />
       <div className="flex h-[calc(100vh-120px)] items-center justify-center bg-gray-100 p-2 md:p-3 lg:p-4">
-        <div className="relative w-full h-full max-w-[95%] max-h-[95%] rounded-lg bg-white shadow-xl flex flex-col overflow-hidden">
+        <div className="relative w-full h-full max-w-[95%] max-h-[95%] rounded-lg bg-white shadow-xl flex flex-col ">
           <div className="absolute -right-2 -top-2 z-10 rotate-12 transform bg-gradient-to-r from-cyan-500 to-[#2DD4BF] px-12 py-2 text-white shadow-md">
             <span className="text-lg font-semibold">Appointments</span>
           </div>
@@ -573,7 +573,7 @@ export default function AppointmentList() {
                 {(process.env.NODE_ENV === "development" || activeNotifications.length > 0) && (
                   <button
                     onClick={clearAllNotifications}
-                    className="mt-6 inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-md backdrop-blur-sm transition-colors"
+                    className="mt-6 inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Clear notifications
@@ -628,7 +628,7 @@ export default function AppointmentList() {
                         />
                       </svg>
                     </div>
-                    <p className="text-lg font-medium text-gray-600">No appointments found</p>
+                    <p className="text-lg font-medium text-gray-600">No upcoming appointments found</p>
                     <p className="text-sm text-gray-500 mt-1">Schedule an appointment to get started</p>
                   </div>
                 ) : (
@@ -654,78 +654,128 @@ export default function AppointmentList() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {appointments.map((appointment) => {
-                          const { date, time } = splitDateTime(appointment.date)
-                          // Check if this appointment has a new notification
-                          const hasNotification = notifications.some(
-                            (n) => n.appointmentId === appointment.id && !n.dismissed,
-                          )
+                        {appointments
+                          .filter((appointment) => {
+                            // Filter out past appointments
+                            const appointmentDate = new Date(appointment.date)
+                            const now = new Date()
+                            return appointmentDate >= now
+                          })
+                          .sort((a, b) => {
+                            // Sort by date (ascending)
+                            return new Date(a.date).getTime() - new Date(b.date).getTime()
+                          })
+                          .map((appointment) => {
+                            const { date, time } = splitDateTime(appointment.date)
+                            // Check if this appointment has a new notification
+                            const hasNotification = notifications.some(
+                              (n) => n.appointmentId === appointment.id && !n.dismissed,
+                            )
 
-                          return (
-                            <tr
-                              key={appointment.id}
-                              className={`${
-                                hasNotification
-                                  ? "bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-blue-500"
-                                  : "hover:bg-gray-50"
-                              } transition-colors`}
-                            >
-                              <td className="px-6 py-4 font-medium text-gray-900">{date}</td>
-                              <td className="px-6 py-4 text-gray-700">{time}</td>
-                              <td className="px-6 py-4">
-                                <div className="flex items-center">
-                                  <div className="h-8 w-8 flex-shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 mr-3">
-                                    {doctors[appointment.medecin_id]
-                                      ? doctors[appointment.medecin_id].prenom.charAt(0) +
-                                        doctors[appointment.medecin_id].nom.charAt(0)
-                                      : "DR"}
+                            return (
+                              <tr
+                                key={appointment.id}
+                                className={`${
+                                  hasNotification
+                                    ? "bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-blue-500"
+                                    : "hover:bg-gray-50"
+                                } transition-colors`}
+                              >
+                                <td className="px-6 py-4 font-medium text-gray-900">{date}</td>
+                                <td className="px-6 py-4 text-gray-700">{time}</td>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center">
+                                    <div className="h-8 w-8 flex-shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 mr-3">
+                                      {doctors[appointment.medecin_id]
+                                        ? doctors[appointment.medecin_id].prenom.charAt(0) +
+                                          doctors[appointment.medecin_id].nom.charAt(0)
+                                        : "DR"}
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {doctors[appointment.medecin_id]
+                                        ? `Dr. ${doctors[appointment.medecin_id].prenom} ${doctors[appointment.medecin_id].nom}`
+                                        : `Doctor #${appointment.medecin_id}`}
+                                    </div>
                                   </div>
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {doctors[appointment.medecin_id]
-                                      ? `Dr. ${doctors[appointment.medecin_id].prenom} ${doctors[appointment.medecin_id].nom}`
-                                      : `Doctor #${appointment.medecin_id}`}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                                    appointment.status === "confirmed"
-                                      ? "bg-green-100 text-green-800"
-                                      : appointment.status === "pending"
-                                        ? "bg-orange-100 text-orange-800"
-                                        : appointment.status === "cancelled"
-                                          ? "bg-red-100 text-red-800"
-                                          : appointment.status === "waiting for patient confirmation"
-                                            ? "bg-amber-100 text-amber-800"
-                                            : "bg-gray-100 text-gray-800"
-                                  }`}
-                                >
+                                </td>
+                                <td className="px-6 py-4">
                                   <span
-                                    className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                                       appointment.status === "confirmed"
-                                        ? "bg-green-600"
+                                        ? "bg-green-100 text-green-800"
                                         : appointment.status === "pending"
-                                          ? "bg-orange-600"
+                                          ? "bg-orange-100 text-orange-800"
                                           : appointment.status === "cancelled"
-                                            ? "bg-red-600"
+                                            ? "bg-red-100 text-red-800"
                                             : appointment.status === "waiting for patient confirmation"
-                                              ? "bg-amber-600"
-                                              : "bg-gray-600"
+                                              ? "bg-amber-100 text-amber-800"
+                                              : "bg-gray-100 text-gray-800"
                                     }`}
-                                  ></span>
-                                  {appointment.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex space-x-2">
-                                  {appointment.status === "waiting for patient confirmation" && (
+                                  >
+                                    <span
+                                      className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                                        appointment.status === "confirmed"
+                                          ? "bg-green-600"
+                                          : appointment.status === "pending"
+                                            ? "bg-orange-600"
+                                            : appointment.status === "cancelled"
+                                              ? "bg-red-600"
+                                              : appointment.status === "waiting for patient confirmation"
+                                                ? "bg-amber-600"
+                                                : "bg-gray-600"
+                                      }`}
+                                    ></span>
+                                    {appointment.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex space-x-2">
+                                    {appointment.status === "waiting for patient confirmation" && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleAccept(appointment.id)
+                                        }}
+                                        className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                                      >
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          className="h-3.5 w-3.5 mr-1.5"
+                                          viewBox="0 0 20 20"
+                                          fill="currentColor"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                        Accept
+                                      </button>
+                                    )}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        handleAccept(appointment.id)
+                                        handleEdit(appointment, e)
                                       }}
-                                      className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                                      className="inline-flex items-center rounded-md bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-700 hover:bg-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2"
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-3.5 w-3.5 mr-1.5"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                      >
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                      </svg>
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleReject(appointment.id, appointment.date)
+                                      }}
+                                      className="inline-flex items-center rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
                                     >
                                       <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -735,56 +785,17 @@ export default function AppointmentList() {
                                       >
                                         <path
                                           fillRule="evenodd"
-                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
                                           clipRule="evenodd"
                                         />
                                       </svg>
-                                      Accept
+                                      Cancel
                                     </button>
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleEdit(appointment, e)
-                                    }}
-                                    className="inline-flex items-center rounded-md bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-700 hover:bg-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:ring-offset-2"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-3.5 w-3.5 mr-1.5"
-                                      viewBox="0 0 20 20"
-                                      fill="currentColor"
-                                    >
-                                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleReject(appointment.id, appointment.date)
-                                    }}
-                                    className="inline-flex items-center rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-3.5 w-3.5 mr-1.5"
-                                      viewBox="0 0 20 20"
-                                      fill="currentColor"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                    Cancel
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
                       </tbody>
                     </table>
                   </div>
