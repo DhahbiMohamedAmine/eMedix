@@ -372,7 +372,7 @@ export default function HeaderComponent() {
           <Link href="/medicament" className="text-white hover:text-blue-200">
             Medicaments
           </Link>
-          <Link href="/calendar" className="text-white hover:text-blue-200" onClick={handleCalendarClick}>
+          <Link href="Calendar" className="text-white hover:text-blue-200" onClick={handleCalendarClick}>
             Calendar
           </Link>
         </div>
@@ -461,7 +461,7 @@ export default function HeaderComponent() {
 
                                 // Navigate to calendar with date parameter - use the correct path
                                 // Use window.location.href instead of router.push to ensure a full page reload
-                                window.location.href = `/medcine/Calendar?date=${formattedDate}&highlight=${notification.appointmentId}`
+                                window.location.href = `/medecin/Calendar?date=${formattedDate}&highlight=${notification.appointmentId}`
 
                                 // Mark this notification as read but don't dismiss it
                                 markNotificationAsRead(notification.appointmentId)
@@ -487,7 +487,7 @@ export default function HeaderComponent() {
 
               <div className="p-3 border-t border-gray-200">
                 <Link
-                  href="/calendar"
+                  href="/medecin/Calendar"
                   className="block text-center text-sm text-blue-600 hover:text-blue-800"
                   onClick={() => {
                     handleCalendarClick()
