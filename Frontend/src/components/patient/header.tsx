@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { LogOut, User } from "lucide-react"
+import { LogOut, User, Clock, Calendar } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { NotificationBadge } from "@/components/notification-badge"
@@ -19,6 +19,13 @@ interface Notification {
   read: boolean
   dismissed: boolean
   timestamp: number
+}
+
+// Add this interface to define the appointment structure
+interface Appointment {
+  id: number
+  status: string
+  // Add other appointment properties as needed
 }
 
 export default function HeaderComponent() {
@@ -43,15 +50,15 @@ export default function HeaderComponent() {
       const response = await fetch(`http://localhost:8000/appointments/patient/${patient_id}`)
       if (!response.ok) return
 
-      const appointments = await response.json()
+      const appointments = (await response.json()) as Appointment[]
 
       // Get last known statuses
       const lastStatusesJson = localStorage.getItem("lastAppointmentStatuses")
-      const lastStatuses = lastStatusesJson ? JSON.parse(lastStatusesJson) : {}
+      const lastStatuses = lastStatusesJson ? (JSON.parse(lastStatusesJson) as Record<number, string>) : {}
 
       // Check for changes
-      const statusChanges = []
-      const currentStatuses = {}
+      const statusChanges: Array<{ id: number; status: string; type: "approved" | "modified" }> = []
+      const currentStatuses: Record<number, string> = {}
 
       for (const app of appointments) {
         currentStatuses[app.id] = app.status
@@ -301,7 +308,7 @@ export default function HeaderComponent() {
           <Link href="/medicament" className="text-white hover:text-blue-200">
             Medicaments
           </Link>
-          <Link href="doctorlist" className="text-white hover:text-blue-200">
+          <Link href="/doctorlist" className="text-white hover:text-blue-200">
             All doctors
           </Link>
         </div>
@@ -346,11 +353,19 @@ export default function HeaderComponent() {
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                   onClick={handleAppointmentClick}
                 >
-                  <User className="w-4 h-4 mr-2" />
+                  <Calendar className="w-4 h-4 mr-2" />
                   My appointments
                   {unreadNotifications > 0 && <NotificationBadge count={unreadNotifications} />}
                 </Link>
               </div>
+              <Link
+                href="appointment-history"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                onClick={() => setShowDropdown(false)}
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Appointment History
+              </Link>
               <button
                 onClick={handleLogout}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"

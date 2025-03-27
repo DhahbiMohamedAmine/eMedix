@@ -79,7 +79,7 @@ export default function Login() {
                 }),
               )
             }
-            router.push("/medcine/Calendar")
+            router.push("/medecin/Calendar")
             break
           case "admin":
             if (userData.admin_id) {
