@@ -10,6 +10,8 @@ from database import get_db
 from Dto.appointment import AppointmentRequest, AppointmentResponse, UpdateAppointmentNoteRequest , UpdateAppointmentRequest, AppointmentFilter
 from datetime import date, datetime, timedelta
 from typing import List
+from Dto.userdto import PatientResponse, UserResponse
+from models.users import User as UserModel
 router = APIRouter()
 
 @router.post("/addappointment/{medecin_id}", response_model=AppointmentResponse)
@@ -332,3 +334,48 @@ async def update_appointment_note(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating appointment note: {e}")
+    
+
+@router.get("/medecin/patients/{medecin_id}", response_model=List[PatientResponse])
+async def get_patients_by_medecin(medecin_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        print(f"Fetching patients for medecin ID: {medecin_id}")
+
+        # Query patients and their associated users using a join
+        query = (
+            select(PatientModel, UserModel)
+            .join(UserModel, UserModel.id == PatientModel.user_id)
+            .join(AppointmentModel, AppointmentModel.patient_id == PatientModel.id)
+            .filter(AppointmentModel.medecin_id == medecin_id)
+            .distinct()
+        )
+
+        result = await db.execute(query)
+        patient_users = result.all()
+
+        if not patient_users:
+            print(f"No patients found for medecin ID {medecin_id}")
+            raise HTTPException(status_code=404, detail="No patients found for this medecin")
+
+        print(f"Found {len(patient_users)} patients")
+
+        # Convert ORM objects to Pydantic models
+        return [
+            PatientResponse(
+                id=patient.id,
+                user_id=patient.user_id,
+                nom=user.nom,
+                prenom=user.prenom,
+                telephone=user.telephone,
+                email=user.email,
+                isverified=user.isverified,
+                photo=user.photo,
+                role=user.role,
+                date_naissance=patient.date_naissance
+            )
+            for patient, user in patient_users
+        ]
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving patients: {str(e)}")
