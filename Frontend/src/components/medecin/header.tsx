@@ -375,6 +375,9 @@ export default function HeaderComponent() {
           <Link href="Calendar" className="text-white hover:text-blue-200" onClick={handleCalendarClick}>
             Calendar
           </Link>
+          <Link href="patientlist" className="text-white hover:text-blue-200" onClick={handleCalendarClick}>
+            My Patients
+          </Link>
         </div>
 
         {/* Notifications */}
@@ -544,4 +547,3 @@ export default function HeaderComponent() {
     </header>
   )
 }
-
