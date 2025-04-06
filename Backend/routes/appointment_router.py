@@ -7,7 +7,7 @@ from models.appointments import Appointment as AppointmentModel
 from models.patients import Patient as PatientModel
 from models.medecins import Medecin
 from database import get_db
-from Dto.appointment import AppointmentRequest, AppointmentResponse, UpdateAppointmentNoteRequest , UpdateAppointmentRequest, AppointmentFilter
+from Dto.appointment import AppointmentRequest,AppointmentMedecinRequest, AppointmentResponse, UpdateAppointmentNoteRequest , UpdateAppointmentRequest, AppointmentFilter
 from datetime import date, datetime, timedelta
 from typing import List
 from Dto.userdto import PatientResponse, UserResponse
@@ -379,3 +379,45 @@ async def get_patients_by_medecin(medecin_id: int, db: AsyncSession = Depends(ge
     except Exception as e:
         print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving patients: {str(e)}")
+
+
+@router.post("/addappointment/patient/{patient_id}", response_model=AppointmentResponse)
+async def add_appointment_with_patient_url(
+    patient_id: int,
+    appointment: AppointmentMedecinRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Check if the patient exists
+        patient_query = select(PatientModel).filter(PatientModel.id == patient_id)
+        patient_result = await db.execute(patient_query)
+        patient_record = patient_result.scalar_one_or_none()
+
+        if not patient_record:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        # Check if the medic exists
+        medic_query = select(Medecin).filter(Medecin.id == appointment.medecin_id)
+        medic_result = await db.execute(medic_query)
+        medic = medic_result.scalar_one_or_none()
+
+        if not medic:
+            raise HTTPException(status_code=404, detail="Medecin (doctor) not found")
+
+        # Create a new appointment with status "en attente"
+        new_appointment = AppointmentModel(
+            patient_id=patient_id,
+            medecin_id=appointment.medecin_id,
+            date=appointment.date,
+            status="waiting for patient confirmation",
+            note=""
+        )
+
+        db.add(new_appointment)
+        await db.commit()
+        await db.refresh(new_appointment)
+
+        return new_appointment
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating appointment: {e}")

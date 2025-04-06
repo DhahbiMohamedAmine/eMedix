@@ -33,3 +33,9 @@ class AppointmentFilter(BaseModel):
 
 class UpdateAppointmentNoteRequest(BaseModel):
     note: str
+
+class AppointmentMedecinRequest(BaseModel):
+    medecin_id: int
+    date: datetime
+    status: Optional[str] = "waiting for patient confirmation"
+    note: Optional[str] = None
