@@ -9,6 +9,11 @@ import EditAppointmentForm from "./appointmentedit"
 import PatientDetailsPopup from "./patientdetails"
 import AppointmentNotePopup from "./note"
 import axios from "axios"
+import dayjs from "dayjs"
+import "dayjs/locale/en-gb"
+import localizedFormat from "dayjs/plugin/localizedFormat"
+dayjs.extend(localizedFormat)
+dayjs.locale("en-gb")
 
 export default function AppointmentCalendar() {
   // Define the Appointment interface
@@ -28,6 +33,17 @@ export default function AppointmentCalendar() {
     // Add other patient fields as needed
   }
 
+  // Add these interfaces after the existing interfaces
+  interface DoctorNotification {
+    appointmentId: number
+    type: "confirmed" | "modified" | "cancelled"
+    read: boolean
+    dismissed: boolean
+    timestamp: number
+    patientId: number
+    appointmentDate: string
+  }
+
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [medecinId, setMedecinId] = useState<string | null>(null)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
@@ -42,6 +58,9 @@ export default function AppointmentCalendar() {
 
   // Add a new state for storing patient information
   const [patients, setPatients] = useState<Record<number, Patient>>({})
+
+  // Add a state to track the highlighted appointment
+  const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<number | null>(null)
 
   // Fetch medecinId from localStorage
   useEffect(() => {
@@ -85,6 +104,72 @@ export default function AppointmentCalendar() {
     }
   }
 
+  // Update the loadNotifications function to only mark notifications as read when explicitly viewing them
+  const loadNotifications = () => {
+    try {
+      // We'll only mark notifications as read when the user explicitly views them
+      // by clicking on a notification, not automatically when loading the calendar page
+
+      // Check if we have a highlighted appointment ID from URL parameters
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search)
+        const highlightParam = urlParams.get("highlight")
+
+        if (highlightParam) {
+          // If we have a highlighted appointment, mark only that notification as read
+          const storedNotifications = localStorage.getItem("doctorAppointmentNotifications")
+          if (storedNotifications) {
+            const parsedNotifications = JSON.parse(storedNotifications) as DoctorNotification[]
+            const appointmentId = Number.parseInt(highlightParam, 10)
+
+            const updatedNotifications = parsedNotifications.map((n) =>
+              n.appointmentId === appointmentId ? { ...n, read: true } : n,
+            )
+
+            localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(updatedNotifications))
+
+            // Notify header component
+            window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error processing notifications:", error)
+    }
+  }
+
+  // Add this function after the loadNotifications function
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const dismissNotification = (appointmentId: number) => {
+    try {
+      // Get all notifications from localStorage
+      const storedNotifications = localStorage.getItem("doctorAppointmentNotifications")
+      if (!storedNotifications) return
+
+      const allNotifications = JSON.parse(storedNotifications) as DoctorNotification[]
+
+      // Update the specific notification
+      const updatedAllNotifications = allNotifications.map((n) =>
+        n.appointmentId === appointmentId ? { ...n, dismissed: true, read: true } : n,
+      )
+
+      // Save back to localStorage
+      localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(updatedAllNotifications))
+
+      // Update local state - filter out the dismissed notification
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const updatedLocalNotifications = [] // notifications.filter((n) => n.appointmentId !== appointmentId)
+      // setNotifications(updatedLocalNotifications)
+
+      console.log(`Dismissed notification for appointment ${appointmentId}`)
+
+      // Notify header component
+      window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+    } catch (error) {
+      console.error("Error dismissing notification:", error)
+    }
+  }
+
   // Fetch patient information when appointments change
   useEffect(() => {
     // Get unique patient IDs from appointments
@@ -97,6 +182,91 @@ export default function AppointmentCalendar() {
       }
     })
   }, [appointments, patients])
+
+  // Add this useEffect after the existing useEffects
+  useEffect(() => {
+    // Load notifications when component mounts
+    loadNotifications()
+
+    // Set up event listener for storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "doctorAppointmentNotifications") {
+        loadNotifications()
+      }
+    }
+
+    // Set up custom event listener for same-window updates
+    const handleCustomEvent = () => {
+      loadNotifications()
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+    window.addEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
+
+    // Poll for new notifications every 5 seconds
+    const interval = setInterval(loadNotifications, 5000)
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+      window.removeEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
+      clearInterval(interval)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Add this useEffect to get the highlighted appointment ID from URL or localStorage
+  useEffect(() => {
+    // Check URL parameters for highlighted appointment
+    if (typeof window !== "undefined") {
+      console.log("Checking URL parameters for highlighted appointment and date")
+      const urlParams = new URLSearchParams(window.location.search)
+      const highlightParam = urlParams.get("highlight")
+      const dateParam = urlParams.get("date")
+
+      console.log("URL parameters:", { highlight: highlightParam, date: dateParam })
+
+      if (highlightParam) {
+        const highlightId = Number.parseInt(highlightParam, 10)
+        console.log("Setting highlighted appointment ID from URL:", highlightId)
+        setHighlightedAppointmentId(highlightId)
+
+        // After a delay, try to scroll to the highlighted appointment
+        setTimeout(() => {
+          const highlightedElement = document.querySelector(`[data-appointment-id="${highlightId}"]`)
+          if (highlightedElement) {
+            console.log("Scrolling to highlighted appointment element")
+            highlightedElement.scrollIntoView({ behavior: "smooth", block: "center" })
+          } else {
+            console.log("Could not find highlighted appointment element")
+          }
+        }, 1000)
+      } else {
+        // Check localStorage for highlighted appointment
+        const storedHighlight = localStorage.getItem("highlightedAppointmentId")
+        if (storedHighlight) {
+          const highlightId = Number.parseInt(storedHighlight, 10)
+          console.log("Setting highlighted appointment ID from localStorage:", highlightId)
+          setHighlightedAppointmentId(highlightId)
+          // Clear it after setting
+          localStorage.removeItem("highlightedAppointmentId")
+        }
+      }
+
+      // Check URL for date parameter
+      if (dateParam) {
+        try {
+          const paramDate = new Date(dateParam)
+          if (!isNaN(paramDate.getTime())) {
+            console.log("Setting selected date from URL:", paramDate.toISOString())
+            setSelectedDate(paramDate)
+            setCurrentDate(paramDate)
+          }
+        } catch (e) {
+          console.error("Invalid date parameter:", e)
+        }
+      }
+    }
+  }, [])
 
   const handleAccept = async (appointmentId: number) => {
     console.log("Attempting to confirm appointment:", appointmentId)
@@ -387,29 +557,37 @@ export default function AppointmentCalendar() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col min-h-screen">
       {/* Fixed Header */}
       <div className="flex-shrink-0">
         <Header />
       </div>
 
       {/* Scrollable Content Area */}
-      <main className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <main className="flex-1 overflow-y-auto bg-gray-100">
+        <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+          <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
             {/* Calendar header */}
-            <div className="flex items-center justify-between p-4 bg-white border-b">
-              <button onClick={prevPeriod} className="p-2 rounded-full hover:bg-gray-200" aria-label="Previous period">
+            <div className="flex items-center justify-between p-5 bg-white border-b border-gray-100">
+              <button
+                onClick={prevPeriod}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Previous period"
+              >
                 <ChevronLeft className="h-5 w-5 text-gray-600" />
               </button>
 
-              <h2 className="text-lg font-medium text-gray-900">{formatMonthYear(currentDate)}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{formatMonthYear(currentDate)}</h2>
 
-              <div className="flex items-center space-x-2">
-                <div className="bg-gray-700 text-white w-8 h-8 rounded-md flex items-center justify-center font-medium">
+              <div className="flex items-center space-x-3">
+                <div className="bg-teal-600 text-white w-8 h-8 rounded-md flex items-center justify-center font-medium shadow-sm">
                   W
                 </div>
-                <button onClick={nextPeriod} className="p-2 rounded-full hover:bg-gray-200" aria-label="Next period">
+                <button
+                  onClick={nextPeriod}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  aria-label="Next period"
+                >
                   <ChevronRight className="h-5 w-5 text-gray-600" />
                 </button>
               </div>
@@ -419,8 +597,8 @@ export default function AppointmentCalendar() {
             <div className="grid grid-cols-7 text-center">
               {/* Day names */}
               {weekDays.map((date, index) => (
-                <div key={index} className="py-3 border-b">
-                  <div className="font-medium text-gray-900">{getDayName(date)}</div>
+                <div key={index} className="py-4 border-b border-gray-100">
+                  <div className="font-medium text-gray-700">{getDayName(date)}</div>
                 </div>
               ))}
 
@@ -433,22 +611,32 @@ export default function AppointmentCalendar() {
                 return (
                   <div
                     key={`day-${index}`}
-                    className="py-4 relative cursor-pointer"
+                    className="py-5 relative cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => {
                       setSelectedDate(date)
                       fetchAppointmentsByDate(date)
                     }}
                   >
                     <div
-                      className={`w-10 h-10 mx-auto flex items-center justify-center rounded-full
-                      ${isSelected ? "bg-teal-500 text-white" : isTodayDate ? "border-2 border-teal-500" : "hover:bg-gray-100"}`}
+                      className={`w-11 h-11 mx-auto flex items-center justify-center rounded-full transition-all
+          ${
+            isSelected
+              ? "bg-teal-500 text-white shadow-md"
+              : isTodayDate
+                ? "border-2 border-teal-500 text-teal-700"
+                : "hover:bg-gray-100"
+          }`}
                     >
                       {date.getDate()}
                     </div>
 
                     {appointmentCount > 0 && (
-                      <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-xs text-gray-400">
-                        {appointmentCount}
+                      <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-xs font-medium">
+                        <span
+                          className={`px-2 py-0.5 rounded-full ${isSelected ? "bg-teal-700 text-white" : "bg-teal-100 text-teal-800"}`}
+                        >
+                          {appointmentCount}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -457,56 +645,59 @@ export default function AppointmentCalendar() {
             </div>
 
             {/* Selected date display */}
-            <div className="p-4 bg-white border-t">
-              <div className="text-lg font-medium text-gray-900">
+            <div className="p-5 bg-gray-50 border-t border-b border-gray-100">
+              <div className="text-xl font-semibold text-gray-900">
                 {selectedDate.getDate()} {selectedDate.toLocaleDateString("en-US", { month: "long" })} /{" "}
                 {selectedDate.getFullYear()}
               </div>
             </div>
 
             {/* New Table Layout for Appointments */}
-            <div className="p-4">
+            <div className="p-6">
               {isLoading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+                <div className="flex justify-center py-16">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500"></div>
                 </div>
               ) : error ? (
                 <div className="text-red-500 p-4 text-center">{error}</div>
               ) : (
                 <div className="overflow-x-auto">
                   {getAppointmentsForDate(selectedDate).length === 0 ? (
-                    <p className="text-gray-500 italic text-center py-8">No appointments scheduled for this day.</p>
+                    <div className="text-center py-16">
+                      <p className="text-gray-500 text-lg">No appointments scheduled for this day.</p>
+                      <p className="text-gray-400 text-sm mt-2">Select another date to view appointments.</p>
+                    </div>
                   ) : (
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Date
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Time
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Patient Name
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Status
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                           >
                             Actions
                           </th>
@@ -516,9 +707,27 @@ export default function AppointmentCalendar() {
                         {getAppointmentsForDate(selectedDate).map((appointment) => {
                           const appointmentDate = new Date(appointment.date)
                           const isPastAppointment = isDateInPast(appointmentDate)
+                          const isHighlighted = appointment.id === highlightedAppointmentId
 
                           return (
-                            <tr key={appointment.id} className="hover:bg-gray-50">
+                            <tr
+                              key={appointment.id}
+                              data-appointment-id={appointment.id}
+                              className={`transition-all duration-300 ${
+                                isHighlighted
+                                  ? "bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500"
+                                  : "hover:bg-gray-50"
+                              }`}
+                              ref={(el) => {
+                                // Scroll to the highlighted appointment
+                                if (isHighlighted && el) {
+                                  setTimeout(() => {
+                                    console.log("Scrolling to highlighted appointment:", appointment.id)
+                                    el.scrollIntoView({ behavior: "smooth", block: "center" })
+                                  }, 500)
+                                }
+                              }}
+                            >
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {appointmentDate.toLocaleDateString()}
                               </td>
@@ -531,23 +740,42 @@ export default function AppointmentCalendar() {
                                   : `Patient #${appointment.patient_id}`}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    isHighlighted
+                                      ? appointment.status === "confirmed"
+                                        ? "bg-green-200 text-green-800"
+                                        : appointment.status === "cancelled"
+                                          ? "bg-red-200 text-red-800"
+                                          : "bg-amber-200 text-amber-800"
+                                      : "bg-orange-100 text-orange-800"
+                                  }`}
+                                >
                                   {appointment.status}
                                 </span>
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex items-center space-x-2">
                                   {isPastAppointment ? (
-                                    // Only show Add Note button for past appointments
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleOpenNotePopup(appointment)
-                                      }}
-                                      className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                                    >
-                                      Add Note
-                                    </button>
+                                    // Show User Details and Add Note buttons for past appointments
+                                    <>
+                                      <button
+                                        onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                        className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center shadow-sm"
+                                      >
+                                        <User className="w-3 h-3 mr-1" />
+                                        User Details
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleOpenNotePopup(appointment)
+                                        }}
+                                        className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
+                                      >
+                                        Add Note
+                                      </button>
+                                    </>
                                   ) : (
                                     // Show all buttons for current or future appointments
                                     <>
@@ -555,19 +783,19 @@ export default function AppointmentCalendar() {
                                         <>
                                           <button
                                             onClick={() => handleAccept(appointment.id)}
-                                            className="rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600 transition-colors"
+                                            className="rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600 transition-colors shadow-sm"
                                           >
                                             Accept
                                           </button>
                                           <button
                                             onClick={(event) => handleEdit(appointment, event)}
-                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors shadow-sm"
                                           >
                                             Edit
                                           </button>
                                           <button
                                             onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center shadow-sm"
                                           >
                                             <User className="w-3 h-3 mr-1" />
                                             User Details
@@ -577,7 +805,7 @@ export default function AppointmentCalendar() {
                                               e.stopPropagation()
                                               handleOpenNotePopup(appointment)
                                             }}
-                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                                           >
                                             Add Note
                                           </button>
@@ -586,13 +814,13 @@ export default function AppointmentCalendar() {
                                         <>
                                           <button
                                             onClick={(event) => handleEdit(appointment, event)}
-                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors shadow-sm"
                                           >
                                             Edit
                                           </button>
                                           <button
                                             onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center shadow-sm"
                                           >
                                             <User className="w-3 h-3 mr-1" />
                                             User Details
@@ -602,7 +830,7 @@ export default function AppointmentCalendar() {
                                               e.stopPropagation()
                                               handleOpenNotePopup(appointment)
                                             }}
-                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                                           >
                                             Add Note
                                           </button>
@@ -611,13 +839,13 @@ export default function AppointmentCalendar() {
                                         <>
                                           <button
                                             onClick={(event) => handleEdit(appointment, event)}
-                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                                            className="rounded-full bg-blue-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors shadow-sm"
                                           >
                                             Edit
                                           </button>
                                           <button
                                             onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center shadow-sm"
                                           >
                                             <User className="w-3 h-3 mr-1" />
                                             User Details
@@ -627,7 +855,7 @@ export default function AppointmentCalendar() {
                                               e.stopPropagation()
                                               handleOpenNotePopup(appointment)
                                             }}
-                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                                           >
                                             Add Note
                                           </button>
@@ -636,7 +864,7 @@ export default function AppointmentCalendar() {
                                         <>
                                           <button
                                             onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
-                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center"
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center shadow-sm"
                                           >
                                             <User className="w-3 h-3 mr-1" />
                                             User Details
@@ -646,7 +874,7 @@ export default function AppointmentCalendar() {
                                               e.stopPropagation()
                                               handleOpenNotePopup(appointment)
                                             }}
-                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
                                           >
                                             Add Note
                                           </button>
@@ -691,7 +919,7 @@ export default function AppointmentCalendar() {
       />
 
       {/* Fixed Footer */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 mt-auto">
         <Footer />
       </div>
     </div>

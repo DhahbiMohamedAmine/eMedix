@@ -2,16 +2,11 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation" // Import useRouter for navigation
+import { useSearchParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Header from "./header"
 import Footer from "../../components/footer"
 import { AlertCircle, CheckCircle, X } from "lucide-react"
-
-interface PatientData {
-  patient_id: number
-  date_naissance: string
-}
 
 interface Toast {
   id: string
@@ -21,51 +16,44 @@ interface Toast {
 
 export default function AppointmentForm() {
   const searchParams = useSearchParams()
-  const router = useRouter() // Initialize router for navigation
-  const medecin_id = searchParams?.get("doctor") // Extract doctor ID from URL
+  const router = useRouter()
 
-  const [patientId, setPatientId] = useState<number | null>(null)
+  const [medecinId, setMedecinId] = useState<number | null>(null)
+  const patientId = Number(searchParams?.get("patient"))
+
   const [selectedDate, setSelectedDate] = useState<string>("")
   const [toasts, setToasts] = useState<Toast[]>([])
   const [isRedirecting, setIsRedirecting] = useState(false)
 
-  // Function to show toast notifications
   const showToast = (message: string, type: "success" | "error" | "warning") => {
     const id = Date.now().toString()
     setToasts((prev) => [...prev, { id, message, type }])
-
-    // Auto-dismiss after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id))
     }, 5000)
   }
 
-  // Function to dismiss a toast
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
   }
 
   useEffect(() => {
-    // Get and parse patientData from localStorage
-    const storedPatientData = localStorage.getItem("patientData")
-    if (storedPatientData) {
+    const storedMedecinData = localStorage.getItem("medecinData")
+    if (storedMedecinData) {
       try {
-        const data: PatientData = JSON.parse(storedPatientData)
-        setPatientId(data.patient_id)
+        const parsed = JSON.parse(storedMedecinData)
+        setMedecinId(parsed.medecin_id)
       } catch (error) {
-        console.error("Error parsing patient data:", error)
+        console.error("Error parsing medecin data:", error)
       }
     }
   }, [])
 
-  // Effect to handle redirection after successful appointment
   useEffect(() => {
     if (isRedirecting) {
-      // Wait for the toast to be visible for a moment before redirecting
       const redirectTimer = setTimeout(() => {
         router.push("/patient/appointmentlist")
       }, 1500)
-
       return () => clearTimeout(redirectTimer)
     }
   }, [isRedirecting, router])
@@ -74,7 +62,12 @@ export default function AppointmentForm() {
     e.preventDefault()
 
     if (!patientId) {
-      showToast("Patient ID not found. Please log in again.", "error")
+      showToast("Patient ID is missing from the URL.", "error")
+      return
+    }
+
+    if (!medecinId) {
+      showToast("Doctor ID not found. Please log in again.", "error")
       return
     }
 
@@ -83,12 +76,6 @@ export default function AppointmentForm() {
       return
     }
 
-    if (!medecin_id) {
-      showToast("Doctor ID is missing from the URL.", "error")
-      return
-    }
-
-    // Validate that the date is not in the past
     const selectedDateTime = new Date(selectedDate)
     const now = new Date()
 
@@ -97,53 +84,48 @@ export default function AppointmentForm() {
       return
     }
 
-    // Validate that the time is between 8:00 and 17:00
     const hours = selectedDateTime.getHours()
-
     if (hours < 8 || hours >= 17) {
       showToast("Please select a time between 8:00 AM and 5:00 PM (business hours).", "warning")
       return
     }
 
-    const formattedDate = new Date(selectedDate).toISOString().split(".")[0]
+    const formattedDate = selectedDateTime.toISOString().split(".")[0]
 
     const appointmentData = {
-      patient_id: patientId,
+      medecin_id: medecinId,
       date: formattedDate,
     }
 
-    console.log("Sending appointment data:", appointmentData)
-
     try {
-      const response = await fetch(`http://localhost:8000/appointments/addappointment/${medecin_id}`, {
+      const response = await fetch(`http://localhost:8000/appointments/addappointment/patient/${patientId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(appointmentData),
-      })
+      }
+     
+   )
 
-      console.log("Response status:", response.status)
       const responseData = await response.json().catch(() => null)
-      console.log("Response data:", responseData)
-
       if (!response.ok) {
+        console.log("Backend error response:", responseData)
         throw new Error(responseData?.message || "Failed to schedule appointment.")
       }
 
-      showToast("Appointment scheduled successfully! Redirecting to appointments list...", "success")
+      showToast("Appointment scheduled successfully! Redirecting...", "success")
       setSelectedDate("")
-      setIsRedirecting(true) // Set redirecting state to true to trigger the navigation
+      setIsRedirecting(true)
     } catch (error) {
       console.error("Error submitting appointment:", error)
       showToast("An error occurred. Please try again.", "error")
     }
   }
 
-  // Get current date and time in the format required for min attribute
   const getCurrentDateTime = () => {
     const now = new Date()
-    return now.toISOString().slice(0, 16) // Format: YYYY-MM-DDTHH:MM
+    return now.toISOString().slice(0, 16)
   }
 
   return (
@@ -210,8 +192,8 @@ export default function AppointmentForm() {
               toast.type === "success"
                 ? "bg-green-50 text-green-800 border-l-4 border-green-500"
                 : toast.type === "error"
-                  ? "bg-red-50 text-red-800 border-l-4 border-red-500"
-                  : "bg-amber-50 text-amber-800 border-l-4 border-amber-500"
+                ? "bg-red-50 text-red-800 border-l-4 border-red-500"
+                : "bg-amber-50 text-amber-800 border-l-4 border-amber-500"
             }`}
             style={{ minWidth: "320px", maxWidth: "420px" }}
           >
@@ -236,4 +218,3 @@ export default function AppointmentForm() {
     </main>
   )
 }
-

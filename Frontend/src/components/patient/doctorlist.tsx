@@ -34,7 +34,8 @@ export default function DoctorList() {
   const handleViewDoctorDetails = (doctorId: number, event: React.MouseEvent) => {
     event.stopPropagation()
     setSelectedDoctorId(doctorId)
-    setIsDoctorDetailsOpen(true)}
+    setIsDoctorDetailsOpen(true)
+  }
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -56,6 +57,7 @@ export default function DoctorList() {
     fetchDoctors()
   }, [])
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDoctorClick = (doctorId: number) => {
     router.push(`/doctor/${doctorId}`)
   }
@@ -70,14 +72,24 @@ export default function DoctorList() {
     return fullName.includes(searchTerm.toLowerCase())
   })
 
-  // Function to get the full image URL
+  // Update the getImageUrl function to be more robust and handle edge cases better
   const getImageUrl = (photoPath: string | null) => {
-    if (!photoPath) return null
-    return `http://localhost:8000${photoPath}`
+    if (!photoPath) return "/images/doctor-placeholder.jpg"
+
+    try {
+      // If it's already a full URL, return it
+      if (photoPath.startsWith("http")) return photoPath
+
+      // Make sure the path starts with a slash
+      const formattedPath = photoPath.startsWith("/") ? photoPath : `/${photoPath}`
+      return `http://localhost:8000${formattedPath}`
+    } catch (error) {
+      console.error("Error formatting image URL:", error)
+      return "/images/doctor-placeholder.jpg"
+    }
   }
 
   return (
-
     <main className="w-full bg-gray-100 min-h-screen">
       <Header />
       <div className="flex min-h-[calc(100vh-120px)] items-center justify-center bg-gray-100 p-2 md:p-3 lg:p-4">
@@ -111,17 +123,19 @@ export default function DoctorList() {
                       <div
                         key={doctor.id}
                         className="rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                           onClick={(event) => handleViewDoctorDetails(doctor.id, event)}
+                        onClick={(event) => handleViewDoctorDetails(doctor.id, event)}
                       >
                         <div className="flex h-full flex-col">
                           <div className="relative h-48 w-full bg-gray-200">
                             {doctor.photo ? (
                               <Image
-                                src={getImageUrl(doctor.photo) || "/images/doctor-placeholder.jpg"}
-                                alt={`${doctor.nom} ${doctor.prenom}`}
+                                src={getImageUrl(doctor.photo) || "/placeholder.svg"}
+                                alt={`${doctor.prenom} ${doctor.nom}`}
                                 fill
+                                unoptimized
                                 style={{ objectFit: "cover" }}
                                 onError={(e) => {
+                                  console.error("Image failed to load:", doctor.photo)
                                   const target = e.target as HTMLImageElement
                                   target.src = "/images/doctor-placeholder.jpg"
                                 }}
@@ -136,7 +150,7 @@ export default function DoctorList() {
                             )}
                           </div>
                           <div className="flex flex-col flex-grow p-4">
-                            <h3 className="text-xl font-bold text-gray-900">{`Dr. ${doctor.prenom} ${doctor.nom}`}</h3>
+                            <h3 className="text-xl font-bold text-gray-900">{`Dr. ${doctor.nom} ${doctor.prenom}`}</h3>
                             <p className="text-sm text-[#2DD4BF] font-medium">{doctor.grade}</p>
                             <p className="mt-2 text-sm text-gray-600">{doctor.diplome}</p>
                             <p className="mt-1 text-sm text-gray-600">
@@ -171,14 +185,13 @@ export default function DoctorList() {
           </div>
         </div>
         <DoctorDetailsPopup
-            isOpen={isDoctorDetailsOpen}
-            doctorId={selectedDoctorId}
-            onClose={() => setIsDoctorDetailsOpen(false)}
-          />
+          isOpen={isDoctorDetailsOpen}
+          doctorId={selectedDoctorId}
+          onClose={() => setIsDoctorDetailsOpen(false)}
+        />
       </div>
       <Footer />
     </main>
-     
   )
 }
 
