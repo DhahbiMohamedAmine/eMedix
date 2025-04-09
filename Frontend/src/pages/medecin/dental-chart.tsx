@@ -1,4 +1,4 @@
-import DentalChart from "@/components/patient/dental-chart"
+import DentalChart from "@/components/medecin/dental-chart"
 
 export default function Home() {
   return (
