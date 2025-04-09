@@ -10,6 +10,52 @@ from Dto.toothdto import ToothOut
 
 router = APIRouter()
 
+
+
+
+
+class ToothNoteUpdate(BaseModel):
+    note: str
+
+
+
+
+@router.get("/patients/{patient_id}/teeth", response_model=list[ToothOut], status_code=status.HTTP_200_OK)
+async def get_patient_teeth(patient_id: int, db: AsyncSession = Depends(get_db)):
+    # Query to get all teeth for the patient
+    result = await db.execute(select(Tooth).filter(Tooth.patient_id == patient_id))
+    teeth = result.scalars().all()
+
+    if not teeth:
+        raise HTTPException(status_code=404, detail="No teeth found for this patient")
+
+    # Prepare the response
+    return teeth
+
+
+
+@router.put("/teeth/{tooth_id}/note", status_code=status.HTTP_200_OK)
+async def update_tooth_note(
+    tooth_id: int,
+    tooth_note: ToothNoteUpdate,  # Use the Pydantic model to parse the request body
+    db: AsyncSession = Depends(get_db)
+):
+    # Asynchronously check if the tooth exists
+    result = await db.execute(select(Tooth).filter(Tooth.id == tooth_id))
+    tooth = result.scalar_one_or_none()
+
+    if not tooth:
+        raise HTTPException(status_code=404, detail="Tooth not found")
+
+    # Update the note for the specific tooth
+    tooth.note = tooth_note.note
+
+    # Commit the changes asynchronously
+    await db.commit()
+
+    return {"message": "Note updated successfully", "tooth_id": tooth.id, "note": tooth.note}
+
+
 @router.post("/patients/{patient_id}/teeth", status_code=status.HTTP_201_CREATED)
 async def create_teeth_for_patient(patient_id: int, db: AsyncSession = Depends(get_db)):
     # Asynchronously check if the patient exists
@@ -35,44 +81,3 @@ async def create_teeth_for_patient(patient_id: int, db: AsyncSession = Depends(g
     await db.commit()
 
     return {"message": "Teeth created for the patient successfully"}
-
-
-
-class ToothNoteUpdate(BaseModel):
-    note: str
-
-@router.put("/teeth/{tooth_id}/note", status_code=status.HTTP_200_OK)
-async def update_tooth_note(
-    tooth_id: int,
-    tooth_note: ToothNoteUpdate,  # Use the Pydantic model to parse the request body
-    db: AsyncSession = Depends(get_db)
-):
-    # Asynchronously check if the tooth exists
-    result = await db.execute(select(Tooth).filter(Tooth.id == tooth_id))
-    tooth = result.scalar_one_or_none()
-
-    if not tooth:
-        raise HTTPException(status_code=404, detail="Tooth not found")
-
-    # Update the note for the specific tooth
-    tooth.note = tooth_note.note
-
-    # Commit the changes asynchronously
-    await db.commit()
-
-    return {"message": "Note updated successfully", "tooth_id": tooth.id, "note": tooth.note}
-
-
-router = APIRouter()
-
-@router.get("/patients/{patient_id}/teeth", response_model=list[ToothOut], status_code=status.HTTP_200_OK)
-async def get_patient_teeth(patient_id: int, db: AsyncSession = Depends(get_db)):
-    # Query to get all teeth for the patient
-    result = await db.execute(select(Tooth).filter(Tooth.patient_id == patient_id))
-    teeth = result.scalars().all()
-
-    if not teeth:
-        raise HTTPException(status_code=404, detail="No teeth found for this patient")
-
-    # Prepare the response
-    return teeth
