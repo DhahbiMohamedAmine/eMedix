@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { LogOut, User, Bell, CheckCircle, XCircle, Calendar } from "lucide-react"
+import { LogOut, User, Bell, CheckCircle, XCircle, Calendar, Users } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { NotificationBadge } from "@/components/notification-badge"
@@ -50,11 +50,11 @@ export default function HeaderComponent() {
 
       // Get last known statuses
       const lastStatusesJson = localStorage.getItem("lastKnownAppointmentStatuses")
-      const lastStatuses = lastStatusesJson ? JSON.parse(lastStatusesJson) : {}
+      const lastStatuses: Record<number, string> = lastStatusesJson ? JSON.parse(lastStatusesJson) : {}
 
       // Check for changes
       const statusChanges = []
-      const currentStatuses = {}
+      const currentStatuses: Record<number, string> = {}
 
       for (const app of appointments) {
         currentStatuses[app.id] = app.status
@@ -330,8 +330,6 @@ export default function HeaderComponent() {
   }
 
   // Add a function to mark a notification as read without dismissing it
-  // Add this function after the dismissNotification function:
-
   const markNotificationAsRead = (appointmentId: number) => {
     const storedNotifications = localStorage.getItem("doctorAppointmentNotifications")
     if (storedNotifications) {
@@ -360,25 +358,9 @@ export default function HeaderComponent() {
     <header className="bg-blue-500 text-white px-4 py-4">
       <div className="container mx-auto flex items-center">
         {/* Logo - Left aligned with some right margin */}
-        <Link href="/home" className="text-white font-bold text-2xl mr-auto">
+        <Link href="/medecin/dashboard" className="text-white font-bold text-2xl mr-auto">
           eMedix
         </Link>
-
-        {/* Navigation Links - Right aligned but before the profile */}
-        <div className="flex space-x-6 mr-6">
-          <Link href="/home" className="text-white hover:text-blue-200">
-            Home
-          </Link>
-          <Link href="/medicament" className="text-white hover:text-blue-200">
-            Medicaments
-          </Link>
-          <Link href="Calendar" className="text-white hover:text-blue-200" onClick={handleCalendarClick}>
-            Calendar
-          </Link>
-          <Link href="patientlist" className="text-white hover:text-blue-200" onClick={handleCalendarClick}>
-            My Patients
-          </Link>
-        </div>
 
         {/* Notifications */}
         <div className="relative mr-4">
@@ -397,7 +379,7 @@ export default function HeaderComponent() {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-20 max-h-[80vh] overflow-y-auto">
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10 max-h-[80vh] overflow-y-auto isolation-isolate">
               <div className="p-3 border-b border-gray-200">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
@@ -524,9 +506,25 @@ export default function HeaderComponent() {
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
               <Link
-                href="profile"
+                href="/medecin/Calendar"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                onClick={() => setShowDropdown(false)}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Calendar
+              </Link>
+              <Link
+                href="/medecin/patientlist"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                onClick={() => setShowDropdown(false)}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                My Patients
+              </Link>
+              <Link
+                href="/medecin/profile"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                 onClick={() => setShowDropdown(false)}
               >
