@@ -12,7 +12,8 @@ class ToothOut(BaseModel):
     tooth_code: str
     tooth_name: str
     note: Optional[str]
-
+    status: str 
+    
     class Config:
         orm_mode = True
 

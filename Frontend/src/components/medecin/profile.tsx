@@ -149,7 +149,7 @@ export default function DoctorProfilePage() {
       {/* Notification */}
       {notification.type && (
         <div
-          className={`fixed top-20 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transition-all duration-300 ${
+          className={`fixed top-20 right-4 z-10 max-w-md p-4 rounded-lg shadow-lg transition-all duration-300 ${
             notification.type === "success" ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"
           }`}
         >

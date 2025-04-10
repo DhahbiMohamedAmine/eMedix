@@ -1,59 +1,129 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 import { useState, useEffect } from "react"
-import { X } from "lucide-react"
+import { X, Save, CheckCircle2 } from "lucide-react"
 
 interface Tooth {
   id: number
   tooth_code: string
   tooth_name: string
   note: string
+  status?: string
 }
 
-export function NoteEditor({
-  tooth,
-  onClose,
-  onSave,
-  showPermanent,
-}: {
-  tooth: Tooth | null
+interface NoteEditorProps {
+  tooth: Tooth
   onClose: () => void
   onSave: (note: string) => void
+  onStatusClick: () => void
   showPermanent: boolean
-}) {
-  const [note, setNote] = useState("")
+}
+
+export function NoteEditor({ tooth, onClose, onSave, onStatusClick, showPermanent }: NoteEditorProps) {
+  const [note, setNote] = useState(tooth.note || "")
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
-    if (tooth) {
-      setNote(tooth.note || "")
-    }
+    setNote(tooth.note || "")
   }, [tooth])
 
-  if (!tooth) return null
-
-  const toothName = showPermanent ? `Permanent ${tooth.tooth_name}` : tooth.tooth_name
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await onSave(note)
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 2000)
+    } catch (error) {
+      console.error("Error saving note:", error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
-    <div className="absolute bg-white rounded-md shadow-lg p-4 z-20 w-80 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 border border-gray-300">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="font-medium text-gray-800">{toothName}</h3>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-          <X size={18} />
+    <div className="absolute top-0 right-0 w-full md:w-1/3 h-full bg-white shadow-lg border rounded-r-xl p-4 flex flex-col">
+      <div className="flex justify-between items-center mb-4 pb-2 border-b">
+        <h3 className="font-medium text-lg">
+          Tooth {tooth.tooth_code} - {tooth.tooth_name}
+        </h3>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors" aria-label="Close">
+          <X size={20} />
         </button>
       </div>
-      <input
-        type="text"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Write notes here..."
-        className="w-full border border-gray-300 rounded p-2 mb-3"
-        autoFocus
-      />
-      <button
-        onClick={() => onSave(note)}
-        className="bg-blue-600 text-white px-4 py-2 rounded font-medium hover:bg-blue-700 transition-colors"
-      >
-        Save
-      </button>
+
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">Status:</span>
+          <div className="flex items-center">
+            {tooth.status ? (
+              <>
+                <div
+                  className={`w-3 h-3 rounded-full mr-1 ${
+                    tooth.status === "Healthy"
+                      ? "bg-green-500"
+                      : tooth.status === "Needs Attention"
+                        ? "bg-yellow-500"
+                        : tooth.status === "Requires Treatment"
+                          ? "bg-red-500"
+                          : "bg-blue-500"
+                  }`}
+                ></div>
+                <span className="text-sm">{tooth.status}</span>
+              </>
+            ) : (
+              <span className="text-sm text-gray-500">Not set</span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={onStatusClick}
+          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded transition-colors"
+        >
+          Change Status
+        </button>
+      </div>
+
+      <div className="flex-grow">
+        <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
+          Notes:
+        </label>
+        <textarea
+          id="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full h-[calc(100%-2rem)] p-2 border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
+          placeholder="Add notes about this tooth..."
+        />
+      </div>
+
+      <div className="flex justify-between items-center mt-4 pt-2 border-t">
+        {saveSuccess ? (
+          <div className="flex items-center text-green-600 text-sm">
+            <CheckCircle2 size={16} className="mr-1" />
+            Saved successfully
+          </div>
+        ) : (
+          <div className="text-xs text-gray-500">All changes are saved automatically</div>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-md transition-colors"
+        >
+          {isSaving ? (
+            <>
+              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save size={16} className="mr-1" />
+              Save Note
+            </>
+          )}
+        </button>
+      </div>
     </div>
   )
 }

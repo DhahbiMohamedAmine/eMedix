@@ -44,6 +44,46 @@ export default function PatientList() {
   const router = useRouter()
   const [isPatientDetailsOpen, setIsPatientDetailsOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null)
+  const [patientVisitData, setPatientVisitData] = useState<
+    Record<number, { totalVisits: number; lastVisit: string | null }>
+  >({})
+
+  // Function to fetch visit data for a patient
+  const fetchPatientVisitData = async (patientId: number, medecinId: number) => {
+    try {
+      // Fetch confirmed appointments count - updated URL pattern
+      const countResponse = await fetch(`http://localhost:8000/appointments/count/confirmed/${patientId}/${medecinId}`)
+      if (!countResponse.ok) {
+        throw new Error("Failed to fetch appointment count")
+      }
+      const countData = await countResponse.json()
+
+      // Fetch last confirmed past appointment
+      let lastVisitDate = null
+      try {
+        const lastVisitResponse = await fetch(
+          `http://localhost:8000/appointments/last-confirmed-past/${patientId}/${medecinId}`,
+        )
+        if (lastVisitResponse.ok) {
+          const lastVisitData = await lastVisitResponse.json()
+          lastVisitDate = new Date(lastVisitData.last_confirmed_past_appointment.date).toLocaleDateString()
+        }
+      } catch (error) {
+        console.log("No past appointments found for patient", patientId)
+      }
+
+      // Update state with the fetched data - updated response key
+      setPatientVisitData((prev) => ({
+        ...prev,
+        [patientId]: {
+          totalVisits: countData.past_confirmed_appointments_count,
+          lastVisit: lastVisitDate,
+        },
+      }))
+    } catch (error) {
+      console.error(`Error fetching visit data for patient ${patientId}:`, error)
+    }
+  }
 
   const handleViewPatientDetails = (patientId: number, event: React.MouseEvent) => {
     event.stopPropagation()
@@ -71,6 +111,11 @@ export default function PatientList() {
 
         const data = await response.json()
         setPatients(data)
+
+        // Fetch visit data for each patient
+        data.forEach((patient: PatientWithAppointments) => {
+          fetchPatientVisitData(patient.id, medecinId)
+        })
       } catch (error) {
         console.error("Error fetching patients:", error)
       } finally {
@@ -293,11 +338,11 @@ export default function PatientList() {
                             <div className="flex flex-col">
                               <div className="flex items-center text-base text-gray-900">
                                 <Clock className="h-5 w-5 text-gray-400 mr-2" />
-                                Last visit: {getLastAppointmentDate(patient.appointments)}
+                                Last visit: {patientVisitData[patient.id]?.lastVisit || "No previous visits"}
                               </div>
                               <div className="flex items-center text-base text-gray-500 mt-2">
                                 <CalendarDays className="h-5 w-5 text-gray-400 mr-2" />
-                                Total visits: {patient.appointments?.length || 0}
+                                Total visits: {patientVisitData[patient.id]?.totalVisits || 0}
                               </div>
                             </div>
                           </td>

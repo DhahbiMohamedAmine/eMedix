@@ -9,5 +9,6 @@ class Tooth(Base):
     tooth_code = Column(String(10))
     tooth_name = Column(String(100))
     note = Column(Text, default="")
+    status = Column(String, nullable=False)
 
     patient = relationship("Patient", back_populates="teeth")

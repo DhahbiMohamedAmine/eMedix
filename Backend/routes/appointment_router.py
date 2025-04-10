@@ -1,6 +1,6 @@
 import asyncio
 from fastapi import APIRouter, HTTPException, Depends , BackgroundTasks
-from sqlalchemy import Date, cast
+from sqlalchemy import Date, cast, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.appointments import Appointment as AppointmentModel
@@ -421,3 +421,72 @@ async def add_appointment_with_patient_url(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating appointment: {e}")
+
+
+
+@router.get("/count/confirmed/{patient_id}/{medecin_id}")
+async def count_confirmed_appointments(
+    patient_id: int,
+    medecin_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        now = datetime.now()
+
+        query = select(func.count()).select_from(AppointmentModel).where(
+            AppointmentModel.patient_id == patient_id,
+            AppointmentModel.medecin_id == medecin_id,
+            AppointmentModel.status == "confirmed",
+            AppointmentModel.date < now  # Only appointments that already passed
+        )
+
+        result = await db.execute(query)
+        count = result.scalar()
+
+        return {"past_confirmed_appointments_count": count}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error counting appointments: {e}")
+
+
+
+
+@router.get("/last-confirmed-past/{patient_id}/{medecin_id}")
+async def get_last_confirmed_past_appointment(
+    patient_id: int,
+    medecin_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        now = datetime.now()
+
+        query = (
+            select(AppointmentModel)
+            .where(
+                AppointmentModel.patient_id == patient_id,
+                AppointmentModel.medecin_id == medecin_id,
+                AppointmentModel.status == "confirmed",
+                AppointmentModel.date < now  # Only past appointments
+            )
+            .order_by(desc(AppointmentModel.date))
+            .limit(1)
+        )
+
+        result = await db.execute(query)
+        last_appointment = result.scalar_one_or_none()
+
+        if not last_appointment:
+            raise HTTPException(status_code=404, detail="No past confirmed appointments found")
+
+        return {
+            "last_confirmed_past_appointment": {
+                "id": last_appointment.id,
+                "date": last_appointment.date,
+                "note": last_appointment.note,
+                "status": last_appointment.status
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving appointment: {e}")
+
