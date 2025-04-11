@@ -1,18 +1,17 @@
 "use client"
 import { useState, useEffect } from "react"
-import axios from "axios"
 
 interface ToothStatusPopupProps {
   isOpen: boolean
   tooth: {
-    id: number
+    id?: number
     tooth_code: string
     tooth_name: string
     status?: string
   } | null
   patientId: number
   onClose: () => void
-  onStatusUpdate?: (toothId: number, newStatus: string) => void
+  onStatusUpdate?: (toothId: number | undefined, newStatus: string) => void
 }
 
 export default function ToothStatusPopup({ isOpen, tooth, patientId, onClose, onStatusUpdate }: ToothStatusPopupProps) {
@@ -43,16 +42,9 @@ export default function ToothStatusPopup({ isOpen, tooth, patientId, onClose, on
     setError(null)
 
     try {
-      // Updated endpoint path and parameter format based on the API specification
-      await axios.put(
-        `http://localhost:8000/tooth/status/${patientId}/teeth/${tooth.id}?status=${encodeURIComponent(status)}`,
-      )
-
       if (onStatusUpdate) {
         onStatusUpdate(tooth.id, status)
       }
-
-      onClose()
     } catch (err) {
       console.error("Error saving status:", err)
       setError("Failed to save tooth status")

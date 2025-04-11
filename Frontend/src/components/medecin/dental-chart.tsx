@@ -10,17 +10,14 @@ import Footer from "@/components/footer"
 import { DentalChartSVG } from "@/components/medecin/dental-chart-svg"
 import { NoteEditor } from "@/components/medecin/note-editor"
 import ToothStatusPopup from "@/components/medecin/tooth-status-popup"
+import { TEETH_LIST } from "@/components/medecin/teeth-constants"
 
 interface Tooth {
-  id: number
+  id?: number
   tooth_code: string
   tooth_name: string
   note: string
   status?: string
-}
-
-interface ToothNoteUpdate {
-  note: string
 }
 
 interface PatientData {
@@ -43,6 +40,7 @@ export default function DentalApp() {
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<"chart" | "history">("chart")
   const [showStatusPopup, setShowStatusPopup] = useState(false)
+  const [changedTeeth, setChangedTeeth] = useState<Set<string>>(new Set())
   const chartRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -81,7 +79,7 @@ export default function DentalApp() {
     fetchPatientData()
   }, [])
 
-  // Fetch teeth data from API
+  // Fetch teeth data from API and initialize default teeth
   useEffect(() => {
     const fetchTeeth = async () => {
       setIsLoading(true)
@@ -100,20 +98,46 @@ export default function DentalApp() {
 
         // Fetch teeth data from the API
         const response = await fetch(`http://localhost:8000/tooth/patients/${patient_id}/teeth`)
-        if (!response.ok) {
-          throw new Error("Failed to fetch teeth data")
+
+        // Initialize all teeth as healthy
+        const defaultTeeth = TEETH_LIST.map((tooth) => ({
+          tooth_code: tooth.tooth_code,
+          tooth_name: tooth.tooth_name,
+          note: "",
+          status: "Healthy",
+        }))
+
+        // If we have teeth data in the database, update our default teeth
+        if (response.ok) {
+          const savedTeeth = await response.json()
+
+          // Create a map of saved teeth by tooth_code for quick lookup
+          const savedTeethMap = savedTeeth.reduce((map: Record<string, Tooth>, tooth: Tooth) => {
+            map[tooth.tooth_code] = tooth
+            return map
+          }, {})
+
+          // Update default teeth with saved data
+          defaultTeeth.forEach((tooth, index) => {
+            if (savedTeethMap[tooth.tooth_code]) {
+              defaultTeeth[index] = savedTeethMap[tooth.tooth_code]
+              // Mark this tooth as already changed
+              setChangedTeeth((prev) => new Set(prev).add(tooth.tooth_code))
+            }
+          })
         }
 
-        const data = await response.json()
-        setTeeth(data)
+        setTeeth(defaultTeeth)
       } catch (error) {
         console.error("Error fetching teeth data:", error)
         // Fallback to sample data for demo purposes
-        setTeeth([
-          { id: 1, tooth_code: "11", tooth_name: "Upper Right Central Incisor", note: "", status: "Healthy" },
-          { id: 2, tooth_code: "12", tooth_name: "Upper Right Lateral Incisor", note: "" },
-          // ... other teeth data
-        ])
+        const defaultTeeth = TEETH_LIST.map((tooth) => ({
+          tooth_code: tooth.tooth_code,
+          tooth_name: tooth.tooth_name,
+          note: "",
+          status: "Healthy",
+        }))
+        setTeeth(defaultTeeth)
       } finally {
         setIsLoading(false)
       }
@@ -141,20 +165,61 @@ export default function DentalApp() {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`http://localhost:8000/tooth/teeth/${selectedTooth.id}/note`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ note }),
-      })
+      // Mark this tooth as changed
+      setChangedTeeth((prev) => new Set(prev).add(selectedToothCode))
 
-      if (!response.ok) {
-        throw new Error("Failed to update note")
+      // Update local state first
+      setTeeth((prevTeeth) =>
+        prevTeeth.map((tooth) => (tooth.tooth_code === selectedToothCode ? { ...tooth, note } : tooth)),
+      )
+
+      // Get patient ID
+      const patientId = getPatientId()
+      if (!patientId) throw new Error("Patient ID not found")
+
+      // If the tooth already has an ID, update it
+      if (selectedTooth.id) {
+        const response = await fetch(`http://localhost:8000/tooth/teeth/${selectedTooth.id}/note`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ note }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to update note")
+        }
       }
+      // If the tooth doesn't have an ID, create it
+      else {
+        const response = await fetch(`http://localhost:8000/tooth/patients/${patientId}/tooth`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tooth_code: selectedTooth.tooth_code,
+            tooth_name: selectedTooth.tooth_name,
+            note: note,
+            status: selectedTooth.status || "Healthy",
+          }),
+        })
 
-      // Update local state
-      setTeeth((prevTeeth) => prevTeeth.map((tooth) => (tooth.id === selectedTooth.id ? { ...tooth, note } : tooth)))
+        if (!response.ok) {
+          throw new Error("Failed to create tooth record")
+        }
+
+        // Get the created tooth with its ID
+        const createdTooth = await response.json()
+
+        // Update the teeth array with the new ID
+        setTeeth((prevTeeth) =>
+          prevTeeth.map((tooth) =>
+            tooth.tooth_code === selectedToothCode ? { ...tooth, id: createdTooth.id } : tooth,
+          ),
+        )
+      }
 
       // Close the note editor
       setSelectedToothCode(null)
@@ -172,10 +237,72 @@ export default function DentalApp() {
   }
 
   // Handle status update
-  const handleStatusUpdate = (toothId: number, newStatus: string) => {
-    // Update local state
-    setTeeth((prevTeeth) => prevTeeth.map((tooth) => (tooth.id === toothId ? { ...tooth, status: newStatus } : tooth)))
-    setShowStatusPopup(false)
+  const handleStatusUpdate = async (toothId: number | undefined, toothCode: string, newStatus: string) => {
+    try {
+      // Mark this tooth as changed
+      setChangedTeeth((prev) => new Set(prev).add(toothCode))
+
+      // Update local state first
+      setTeeth((prevTeeth) =>
+        prevTeeth.map((tooth) => (tooth.tooth_code === toothCode ? { ...tooth, status: newStatus } : tooth)),
+      )
+
+      // Get patient ID
+      const patientId = getPatientId()
+      if (!patientId) throw new Error("Patient ID not found")
+
+      // If the tooth already has an ID, update it
+      if (toothId) {
+        const response = await fetch(
+          `http://localhost:8000/tooth/status/${patientId}/teeth/${toothId}?status=${encodeURIComponent(newStatus)}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error("Failed to update status")
+        }
+      }
+      // If the tooth doesn't have an ID, create it
+      else {
+        const selectedTooth = teeth.find((tooth) => tooth.tooth_code === toothCode)
+        if (!selectedTooth) throw new Error("Tooth not found")
+
+        const response = await fetch(`http://localhost:8000/tooth/patients/${patientId}/tooth`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tooth_code: selectedTooth.tooth_code,
+            tooth_name: selectedTooth.tooth_name,
+            note: selectedTooth.note || "",
+            status: newStatus,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to create tooth record")
+        }
+
+        // Get the created tooth with its ID
+        const createdTooth = await response.json()
+
+        // Update the teeth array with the new ID
+        setTeeth((prevTeeth) =>
+          prevTeeth.map((tooth) => (tooth.tooth_code === toothCode ? { ...tooth, id: createdTooth.id } : tooth)),
+        )
+      }
+    } catch (error) {
+      console.error("Error updating status:", error)
+      alert("Failed to update status. Please try again.")
+    } finally {
+      setShowStatusPopup(false)
+    }
   }
 
   // Get the selected tooth
@@ -375,7 +502,9 @@ export default function DentalApp() {
                         tooth={selectedTooth}
                         patientId={getPatientId()}
                         onClose={() => setShowStatusPopup(false)}
-                        onStatusUpdate={handleStatusUpdate}
+                        onStatusUpdate={(toothId, newStatus) =>
+                          handleStatusUpdate(toothId, selectedTooth.tooth_code, newStatus)
+                        }
                       />
                     )}
                   </div>
@@ -429,13 +558,6 @@ export default function DentalApp() {
             </button>
 
             <div className="flex gap-3">
-              <button
-                onClick={handleScheduleAppointment}
-                className="flex items-center justify-center gap-2 bg-white border border-teal-600 text-teal-600 py-2 px-4 rounded-lg hover:bg-teal-50 transition-colors"
-              >
-                <Calendar size={16} className="mr-1" />
-                <span className="text-sm font-medium">Schedule Appointment</span>
-              </button>
               <button className="flex items-center justify-center gap-2 bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">
                 <span className="text-sm font-medium">Save Changes</span>
               </button>
