@@ -3,7 +3,7 @@
 import type React from "react"
 
 interface Tooth {
-  id: number
+  id?: number
   tooth_code: string
   tooth_name: string
   note: string

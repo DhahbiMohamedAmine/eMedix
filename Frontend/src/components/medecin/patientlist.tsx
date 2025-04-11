@@ -141,28 +141,6 @@ export default function PatientList() {
     try {
       setProcessingPatient(patientId)
 
-      // First, check if the patient already has teeth records
-      const teethResponse = await fetch(`http://localhost:8000/tooth/patients/${patientId}/teeth`)
-
-      // If the patient doesn't have teeth records (404) or the array is empty, create them
-      if (!teethResponse.ok || (teethResponse.ok && (await teethResponse.json()).length === 0)) {
-        // Create teeth records for the patient
-        const createTeethResponse = await fetch(`http://localhost:8000/tooth/patients/${patientId}/teeth`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!createTeethResponse.ok) {
-          throw new Error("Failed to create teeth records for patient")
-        }
-
-        console.log("Teeth records created successfully for patient:", patientId)
-      } else {
-        console.log("Patient already has teeth records:", patientId)
-      }
-
       // Store the patient ID in localStorage for the dental chart to use
       localStorage.setItem("patientData", JSON.stringify({ patient_id: patientId }))
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { X, Save, CheckCircle2 } from "lucide-react"
 
 interface Tooth {
-  id: number
+  id?: number
   tooth_code: string
   tooth_name: string
   note: string

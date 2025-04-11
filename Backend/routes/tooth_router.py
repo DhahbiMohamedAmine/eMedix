@@ -10,15 +10,14 @@ from Dto.toothdto import ToothOut
 
 router = APIRouter()
 
-
-
-
+class ToothCreate(BaseModel):
+    tooth_code: str
+    tooth_name: str
+    note: str = ""
+    status: str = "Healthy"
 
 class ToothNoteUpdate(BaseModel):
     note: str
-
-
-
 
 @router.get("/patients/{patient_id}/teeth", response_model=list[ToothOut], status_code=status.HTTP_200_OK)
 async def get_patient_teeth(patient_id: int, db: AsyncSession = Depends(get_db)):
@@ -26,18 +25,38 @@ async def get_patient_teeth(patient_id: int, db: AsyncSession = Depends(get_db))
     result = await db.execute(select(Tooth).filter(Tooth.patient_id == patient_id))
     teeth = result.scalars().all()
 
-    if not teeth:
-        raise HTTPException(status_code=404, detail="No teeth found for this patient")
-
-    # Prepare the response
+    # Return the teeth (even if empty)
     return teeth
 
+@router.post("/patients/{patient_id}/tooth", response_model=ToothOut, status_code=status.HTTP_201_CREATED)
+async def create_single_tooth(patient_id: int, tooth: ToothCreate, db: AsyncSession = Depends(get_db)):
+    # Check if the patient exists
+    result = await db.execute(select(Patient).filter(Patient.id == patient_id))
+    patient = result.scalar_one_or_none()
 
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # Create a new tooth entry
+    new_tooth = Tooth(
+        patient_id=patient.id,
+        tooth_code=tooth.tooth_code,
+        tooth_name=tooth.tooth_name,
+        note=tooth.note,
+        status=tooth.status
+    )
+
+    # Add the new tooth to the session and commit
+    db.add(new_tooth)
+    await db.commit()
+    await db.refresh(new_tooth)
+
+    return new_tooth
 
 @router.put("/teeth/{tooth_id}/note", status_code=status.HTTP_200_OK)
 async def update_tooth_note(
     tooth_id: int,
-    tooth_note: ToothNoteUpdate,  # Use the Pydantic model to parse the request body
+    tooth_note: ToothNoteUpdate,
     db: AsyncSession = Depends(get_db)
 ):
     # Asynchronously check if the tooth exists
@@ -54,35 +73,6 @@ async def update_tooth_note(
     await db.commit()
 
     return {"message": "Note updated successfully", "tooth_id": tooth.id, "note": tooth.note}
-
-
-@router.post("/patients/{patient_id}/teeth", status_code=status.HTTP_201_CREATED)
-async def create_teeth_for_patient(patient_id: int, db: AsyncSession = Depends(get_db)):
-    # Asynchronously check if the patient exists
-    result = await db.execute(select(Patient).filter(Patient.id == patient_id))
-    patient = result.scalar_one_or_none()
-
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-
-    # Create the 32 teeth entries for this patient
-    teeth_entries = []
-    for tooth in TEETH_LIST:
-        new_tooth = Tooth(
-            patient_id=patient.id,
-            tooth_code=tooth["tooth_code"],
-            tooth_name=tooth["tooth_name"],
-            note="",
-            status="Healthy" 
-        )
-        teeth_entries.append(new_tooth)
-
-    # Add the new teeth to the session and commit asynchronously
-    db.add_all(teeth_entries)
-    await db.commit()
-
-    return {"message": "Teeth created for the patient successfully"}
-
 
 @router.put("/status/{patient_id}/teeth/{tooth_id}", status_code=status.HTTP_200_OK)
 async def update_tooth_status(
