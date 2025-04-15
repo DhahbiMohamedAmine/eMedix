@@ -1,3 +1,4 @@
+from fastapi import UploadFile
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional
@@ -17,20 +18,18 @@ class UserRequest(BaseModel):
     grade: Optional[str] = None
     annee_experience: Optional[int] = None
 
-
-
-
     class Config:
         # This will allow only fields relevant to the role
         # "role" determines the required fields
         @staticmethod
-        def json_schema_extra(schema, model):
+        def schema_extra(schema, model):
             if model.role == "patient":
                 # Adjust schema for "patient" role to only show necessary fields
                 schema['properties'].pop('adresse', None)
                 schema['properties'].pop('diplome', None)
                 schema['properties'].pop('grade', None)
                 schema['properties'].pop('annee_experience', None)
+
 
 class UserResponse(BaseModel):
     id: int
@@ -43,9 +42,8 @@ class UserResponse(BaseModel):
 
 
 class UpdatePatientProfileRequest(BaseModel):
-    telephone: str
-    password: str
-    photo: Optional[str] = None 
+    telephone: Optional[str] = None
+    photo: Optional[UploadFile] = None
 
 class UpdateMedcinProfileRequest(BaseModel):
     adresse: Optional[str]

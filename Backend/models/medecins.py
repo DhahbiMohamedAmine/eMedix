@@ -15,3 +15,4 @@ class Medecin(Base):
 
     user = relationship("User", back_populates="medecin")
     appointments = relationship("Appointment", back_populates="medecin")
+    prescriptions = relationship("Prescription", back_populates="medecin", cascade="all, delete")

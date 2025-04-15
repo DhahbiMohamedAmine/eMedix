@@ -148,38 +148,40 @@ export default function Home() {
           </div>
         </div>
       </header>
+<div className="w-full">
+  <section
+    className="cover bg-gradient-to-r from-blue-600 to-blue-400 relative w-full px-4 sm:px-8 lg:px-16 xl:px-40 2xl:px-64 overflow-hidden py-48 flex
+    items-center min-h-screen"
+  >
+    <div className="absolute inset-0 z-0">
+      <Image
+        src="/images/cover-bg.jpg"
+        alt=""
+        className="w-full h-full object-cover opacity-20"
+        width={1920}
+        height={1080}
+      />
+    </div>
 
-      {/* Hero Section */}
-      <div className="bg-gray-100">
-        <section
-          className="cover bg-blue-teal-gradient relative bg-blue-500 px-4 sm:px-8 lg:px-16 xl:px-40 2xl:px-64 overflow-hidden py-48 flex
-        items-center min-h-screen"
+    <div className="w-full lg:w-3/4 xl:w-2/4 relative z-10 h-100 lg:mt-16">
+      <div>
+        <h1 className="text-white text-4xl md:text-5xl xl:text-6xl font-bold leading-tight">
+          Your health begins with precision care.
+        </h1>
+        <p className="text-blue-100 text-xl md:text-2xl leading-snug mt-4">
+          Welcome to eMedix, where expertise and compassion come together for your well-being
+        </p>
+        <Link
+          href="/login"
+          className="px-8 py-4 bg-teal-500 hover:bg-teal-600 transition-colors text-white rounded inline-block mt-8 font-semibold"
         >
-          <div className="h-full absolute top-0 left-0 z-0">
-            <Image
-              src="/images/banner.png"
-              alt=""
-              className="w-full h-full object-cover opacity-20"
-              width={1920}
-              height={1080}
-            />
-          </div>
-
-          <div className="lg:w-3/4 xl:w-2/4 relative z-10 h-100 lg:mt-16">
-            <div>
-              <h1 className="text-white text-4xl md:text-5xl xl:text-6xl font-bold leading-tight">
-                Your health begins with precision care.
-              </h1>
-              <p className="text-blue-100 text-xl md:text-2xl leading-snug mt-4">
-                Welcome to eMedix, where expertise and compassion come together for your well-being
-              </p>
-              <Link href="/login" className="px-8 py-4 bg-teal-500 text-white rounded inline-block mt-8 font-semibold">
-                Book Appointment
-              </Link>
-            </div>
-          </div>
-        </section>
+          Book Appointment
+        </Link>
       </div>
+    </div>
+  </section>
+</div>
+
 
       {/* About Section */}
       <section ref={aboutRef} className="relative px-4 py-16 sm:px-8 lg:px-16 xl:px-40 2xl:px-64 lg:py-32">

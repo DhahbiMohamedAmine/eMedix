@@ -1,6 +1,10 @@
 import asyncio
+import os
+import shutil
+from typing import Optional
+from uuid import uuid4
 import bcrypt
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, File, Form, HTTPException, Depends, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.patients import Patient as PatientModel
@@ -56,7 +60,7 @@ async def get_patient_details(patient_id: int, db: AsyncSession = Depends(get_db
         raise HTTPException(status_code=500, detail=f"Error retrieving patient details: {str(e)}")
 
 
-@router.get("/medcine/{medicine_id}", response_model=MedcinResponse)
+@router.get("/medecin/{medicine_id}", response_model=MedcinResponse)
 async def get_medicine_details(medicine_id: int, db: AsyncSession = Depends(get_db)):
     try:
         print(f"Fetching patient with ID: {medicine_id}")
@@ -98,15 +102,21 @@ async def get_medicine_details(medicine_id: int, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=500, detail=f"Error retrieving medicine details: {str(e)}")
 
 @router.put("/updatemedecin/{medecin_id}")
-async def update_medecin_details(medecin_id: int, update_data: UpdateMedcinProfileRequest, db: AsyncSession = Depends(get_db)):
+async def update_medecin_details(
+    medecin_id: int,
+    telephone: Optional[str] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+    adress:  Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db)
+):
     try:
-        # Fetch Medecin details
+        # Fetch Patient details
         medecin_query = select(MedcineModel).filter(MedcineModel.id == medecin_id)
         medecin_result = await db.execute(medecin_query)
         medecin = medecin_result.scalar_one_or_none()
 
         if not medecin:
-            raise HTTPException(status_code=404, detail="Medecin not found")
+            raise HTTPException(status_code=404, detail="Patient not found")
 
         # Fetch associated User details
         user_query = select(UserModel).filter(UserModel.id == medecin.user_id)
@@ -115,16 +125,24 @@ async def update_medecin_details(medecin_id: int, update_data: UpdateMedcinProfi
 
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
-        # Update only provided fields
-        if update_data.adresse is not None:
-            medecin.adresse = update_data.adresse
-        if update_data.telephone is not None:
-            user.telephone = update_data.telephone
-        if update_data.photo is not None:
-            user.photo = update_data.photo
-        if update_data.password is not None:
-            user.password = hash_password(update_data.password)  
+
+        # Update telephone if provided
+        if telephone is not None:
+            user.telephone = telephone
+
+        if adress is not None:
+            medecin.adresse = adress
+
+        # Handle photo upload like register function
+        if photo is not None:
+            upload_dir = os.path.join("static", "uploads")
+            os.makedirs(upload_dir, exist_ok=True)
+            file_extension = os.path.splitext(photo.filename)[1]
+            unique_filename = f"{uuid4()}{file_extension}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(photo.file, buffer)
+            user.photo = f"/static/uploads/{unique_filename}"
 
         # Commit changes
         await db.commit()
@@ -132,28 +150,33 @@ async def update_medecin_details(medecin_id: int, update_data: UpdateMedcinProfi
         await db.refresh(user)
 
         return {
-            "message": "Medecin details updated successfully",
-            "medecin": {
+            "message": "medecin details updated successfully",
+            "patient": {
                 "id": medecin.id,
                 "user_id": medecin.user_id,
-                "adresse": medecin.adresse
+                "adress": medecin.adresse
             },
             "user": {
                 "nom": user.nom,
                 "prenom": user.prenom,
                 "telephone": user.telephone,
                 "email": user.email,
-                "password":user.password,
                 "photo": user.photo,
                 "role": user.role
             }
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating medecin details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating patient details: {str(e)}")
+    
 
 @router.put("/updatepatient/{patient_id}")
-async def update_patient_details(patient_id: int, update_data: UpdatePatientProfileRequest, db: AsyncSession = Depends(get_db)):
+async def update_patient_details(
+    patient_id: int,
+    telephone: Optional[str] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db)
+):
     try:
         # Fetch Patient details
         patient_query = select(PatientModel).filter(PatientModel.id == patient_id)
@@ -171,13 +194,20 @@ async def update_patient_details(patient_id: int, update_data: UpdatePatientProf
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Update only provided fields
-        if update_data.telephone is not None:
-            user.telephone = update_data.telephone
-        if update_data.photo is not None:
-            user.photo = update_data.photo
-        if update_data.password is not None:
-            user.password = hash_password(update_data.password)
+        # Update telephone if provided
+        if telephone is not None:
+            user.telephone = telephone
+
+        # Handle photo upload like register function
+        if photo is not None:
+            upload_dir = os.path.join("static", "uploads")
+            os.makedirs(upload_dir, exist_ok=True)
+            file_extension = os.path.splitext(photo.filename)[1]
+            unique_filename = f"{uuid4()}{file_extension}"
+            file_path = os.path.join(upload_dir, unique_filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(photo.file, buffer)
+            user.photo = f"/static/uploads/{unique_filename}"
 
         # Commit changes
         await db.commit()
@@ -194,7 +224,6 @@ async def update_patient_details(patient_id: int, update_data: UpdatePatientProf
             "user": {
                 "nom": user.nom,
                 "prenom": user.prenom,
-                "password":user.password,
                 "telephone": user.telephone,
                 "email": user.email,
                 "photo": user.photo,
@@ -203,4 +232,47 @@ async def update_patient_details(patient_id: int, update_data: UpdatePatientProf
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating patient details: {str(e)}")    
+        raise HTTPException(status_code=500, detail=f"Error updating patient details: {str(e)}")
+
+
+@router.get("/medecins", response_model=list[MedcinResponse])
+async def get_all_medecins(db: AsyncSession = Depends(get_db)):
+    try:
+        print("Fetching all medecins...")
+
+        query = (
+            select(MedcineModel, UserModel)
+            .join(UserModel, UserModel.id == MedcineModel.user_id)
+        )
+
+        result = await db.execute(query)
+        medecins = result.all()
+
+        if not medecins:
+            print("No medecins found")
+            raise HTTPException(status_code=404, detail="No medecins found")
+
+        medecin_list = [
+            MedcinResponse(
+                id=med.id,
+                user_id=med.user_id,
+                nom=user.nom,
+                prenom=user.prenom,
+                email=user.email,
+                password=user.password,
+                photo=user.photo,
+                telephone=user.telephone,
+                adresse=med.adresse,
+                diplome=med.diplome,
+                grade=med.grade,
+                annee_experience=med.annee_experience,
+            )
+            for med, user in medecins
+        ]
+
+        return medecin_list
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving medecins: {str(e)}")
+

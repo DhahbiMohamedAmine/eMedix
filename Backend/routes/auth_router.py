@@ -286,7 +286,7 @@ async def login(user: LoginRequest, db: AsyncSession = Depends(get_db)):
         return user_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to login: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Veuillez vérifier vos identifiants")
 
     
 

@@ -236,4 +236,3 @@ export default function AppointmentForm() {
     </main>
   )
 }
-
