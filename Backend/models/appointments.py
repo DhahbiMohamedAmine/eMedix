@@ -15,3 +15,6 @@ class Appointment(Base):
     # Relationships
     patient = relationship("Patient", back_populates="appointments")
     medecin = relationship("Medecin", back_populates="appointments")
+    prescriptions = relationship("Prescription", back_populates="appointment")
+
+
