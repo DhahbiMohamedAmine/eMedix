@@ -1,13 +1,16 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, ChevronRight, User } from "lucide-react"
+import { ChevronLeft, ChevronRight, User, FileText } from "lucide-react"
 import Header from "./header"
 import Footer from "../footer"
 import EditAppointmentForm from "./appointmentedit"
 import PatientDetailsPopup from "./patientdetails"
 import AppointmentNotePopup from "./note"
+import PrescriptionForm from "./prescription-form"
+import PrescriptionDetails from "./prescription-details" // Import the new component
 import axios from "axios"
 import dayjs from "dayjs"
 import "dayjs/locale/en-gb"
@@ -24,6 +27,7 @@ export default function AppointmentCalendar() {
     date: string
     status: string
     note: string | null
+    has_prescription?: boolean // Add this optional field
   }
 
   // Define the Patient interface
@@ -56,11 +60,22 @@ export default function AppointmentCalendar() {
   const [isNotePopupOpen, setIsNotePopupOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
 
-  // Add a new state for storing patient information
-  const [patients, setPatients] = useState<Record<number, Patient>>({})
+  // Add state for prescription form
+  const [isPrescriptionFormOpen, setIsPrescriptionFormOpen] = useState(false)
+  const [appointmentForPrescription, setAppointmentForPrescription] = useState<Appointment | null>(null)
+
+  // Add state for prescription details
+  const [isPrescriptionDetailsOpen, setIsPrescriptionDetailsOpen] = useState(false)
+  const [appointmentForPrescriptionDetails, setAppointmentForPrescriptionDetails] = useState<number | null>(null)
 
   // Add a state to track the highlighted appointment
   const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<number | null>(null)
+
+  // Add a state to store patient information
+  const [patients, setPatients] = useState<Record<number, Patient>>({})
+
+  // Add a state to track appointments with prescriptions
+  const [appointmentsWithPrescriptions, setAppointmentsWithPrescriptions] = useState<number[]>([])
 
   // Fetch medecinId from localStorage
   useEffect(() => {
@@ -73,6 +88,47 @@ export default function AppointmentCalendar() {
     }
   }, [])
 
+  // Make checkPrescriptionsForAppointments a useCallback function to avoid infinite loops
+  const checkPrescriptionsForAppointments = useCallback(async (appointmentsList: Appointment[]) => {
+    try {
+      console.log("Checking prescriptions for appointments:", appointmentsList.length)
+      const appointmentsWithPrescriptionsIds: number[] = []
+
+      // For each finished appointment, check if it has a prescription
+      const finishedAppointments = appointmentsList.filter((a) => a.status === "finished")
+      console.log("Finished appointments:", finishedAppointments.length)
+
+      for (const appointment of finishedAppointments) {
+        try {
+          console.log(`Checking prescription for appointment ${appointment.id}`)
+          // Use the correct endpoint as specified by the user
+          const response = await axios.get(`http://localhost:8000/prescriptions/${appointment.id}`)
+
+          if (response.data && response.data.id) {
+            console.log(`Found prescription for appointment ${appointment.id}:`, response.data.id)
+            appointmentsWithPrescriptionsIds.push(appointment.id)
+          }
+        } catch (error) {
+          // If there's an error or no prescription found, just continue
+          console.log(`No prescription found for appointment ${appointment.id}`)
+        }
+      }
+
+      console.log("Appointments with prescriptions:", appointmentsWithPrescriptionsIds)
+      setAppointmentsWithPrescriptions(appointmentsWithPrescriptionsIds)
+
+      // Update the appointments with the has_prescription flag
+      setAppointments((prev) =>
+        prev.map((appointment) => ({
+          ...appointment,
+          has_prescription: appointmentsWithPrescriptionsIds.includes(appointment.id),
+        })),
+      )
+    } catch (error) {
+      console.error("Error checking prescriptions:", error)
+    }
+  }, [])
+
   // Fetch appointments when medecinId is set
   useEffect(() => {
     if (!medecinId) return
@@ -81,13 +137,16 @@ export default function AppointmentCalendar() {
       try {
         const response = await axios.get(`http://localhost:8000/appointments/medecin/${medecinId}`)
         setAppointments(response.data) // Store the list of appointments
+
+        // Check which appointments have prescriptions
+        checkPrescriptionsForAppointments(response.data)
       } catch (err) {
         console.error(err)
       }
     }
 
     fetchAppointments()
-  }, [medecinId])
+  }, [medecinId, checkPrescriptionsForAppointments])
 
   // Function to fetch patient information
   const fetchPatientInfo = async (patientId: number) => {
@@ -139,7 +198,6 @@ export default function AppointmentCalendar() {
   }
 
   // Add this function after the loadNotifications function
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const dismissNotification = (appointmentId: number) => {
     try {
       // Get all notifications from localStorage
@@ -157,7 +215,6 @@ export default function AppointmentCalendar() {
       localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(updatedAllNotifications))
 
       // Update local state - filter out the dismissed notification
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const updatedLocalNotifications = [] // notifications.filter((n) => n.appointmentId !== appointmentId)
       // setNotifications(updatedLocalNotifications)
 
@@ -288,6 +345,67 @@ export default function AppointmentCalendar() {
     }
   }
 
+  // New function to mark appointment as finished
+  const handleFinishAppointment = async (appointmentId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    console.log("Attempting to finish appointment:", appointmentId)
+
+    try {
+      const response = await axios.put(`http://localhost:8000/appointments/finish/${appointmentId}`)
+      console.log("Response from server:", response.data)
+
+      // Update the appointment status in the local state
+      setAppointments((prevAppointments) =>
+        prevAppointments.map((a) => (a.id === appointmentId ? { ...a, status: "finished" } : a)),
+      )
+
+      // Find the appointment to open prescription form
+      const appointment = appointments.find((a) => a.id === appointmentId)
+      if (appointment) {
+        setAppointmentForPrescription(appointment)
+        setIsPrescriptionFormOpen(true)
+      }
+
+      alert("Appointment marked as finished!")
+    } catch (error) {
+      console.error("Failed to finish appointment:", error)
+    }
+  }
+
+  // New function to view prescription details
+  const handleViewPrescriptionDetails = (appointmentId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    console.log("Opening prescription details for appointment:", appointmentId)
+
+    // First check if we have the prescription in our state
+    const appointmentWithPrescription = appointments.find(
+      (a) => a.id === appointmentId && (a.has_prescription || appointmentsWithPrescriptions.includes(a.id)),
+    )
+
+    if (appointmentWithPrescription) {
+      setAppointmentForPrescriptionDetails(appointmentId)
+      setIsPrescriptionDetailsOpen(true)
+    } else {
+      // If we don't have it in state, try to fetch it
+      axios
+        .get(`http://localhost:8000/prescriptions/${appointmentId}`)
+        .then((response) => {
+          if (response.data && response.data.id) {
+            // We found a prescription, update our state
+            setAppointmentsWithPrescriptions((prev) => (prev.includes(appointmentId) ? prev : [...prev, appointmentId]))
+            setAppointmentForPrescriptionDetails(appointmentId)
+            setIsPrescriptionDetailsOpen(true)
+          } else {
+            alert("No prescription found for this appointment.")
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching prescription:", error)
+          alert("Failed to load prescription. Please try again.")
+        })
+    }
+  }
+
   // New function to view patient details
   const handleViewPatientDetails = (patientId: number, event: React.MouseEvent) => {
     event.stopPropagation()
@@ -339,7 +457,6 @@ export default function AppointmentCalendar() {
 
   const [currentDate, setCurrentDate] = useState(new Date()) // Today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [viewMode, setViewMode] = useState<"week" | "month">("week")
 
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -357,96 +474,138 @@ export default function AppointmentCalendar() {
   }, [])
 
   // Fetch appointments for a specific date - wrapped in useCallback to use in dependency array
-  const fetchAppointmentsByDate = useCallback(async (date: Date) => {
-    setIsLoading(true)
-    setError(null)
+  const fetchAppointmentsByDate = useCallback(
+    async (date: Date) => {
+      setIsLoading(true)
+      setError(null)
 
-    try {
-      // Get medecin_id from localStorage
-      const user = JSON.parse(localStorage.getItem("user") || "{}")
-      const medecin_id = user.medecin_id
+      try {
+        // Get medecin_id from localStorage
+        const user = JSON.parse(localStorage.getItem("user") || "{}")
+        const medecin_id = user.medecin_id
 
-      if (!medecin_id) {
-        setError("User not found or not logged in")
-        setAppointments([])
-        setIsLoading(false)
-        return
-      }
-
-      // Format date as YYYY-MM-DD
-      const year = date.getFullYear()
-      const month = date.getMonth() + 1 // getMonth() is 0-indexed
-      const day = date.getDate()
-      const formattedDate = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
-
-      // Create the filter object for the POST request
-      const filter = {
-        medecin_id: medecin_id,
-        date: formattedDate,
-      }
-
-      // Make POST request to the backend endpoint
-      const response = await fetch("http://localhost:8000/appointments/bydate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(filter),
-      })
-
-      // Handle all non-200 responses here
-      if (!response.ok) {
-        // If it's a 404, we treat it as "no appointments" rather than an error
-        if (response.status === 404) {
+        if (!medecin_id) {
+          setError("User not found or not logged in")
           setAppointments([])
           setIsLoading(false)
           return
         }
 
-        // For status 500 or any other error, we'll also set empty appointments
-        // instead of showing an error message
-        setAppointments([])
-        setIsLoading(false)
-        return
-      }
+        // Format date as YYYY-MM-DD
+        const year = date.getFullYear()
+        const month = date.getMonth() + 1 // getMonth() is 0-indexed
+        const day = date.getDate()
+        const formattedDate = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
 
-      const data = await response.json()
-
-      // If data is empty array or null/undefined, handle it gracefully
-      if (!data || data.length === 0) {
-        setAppointments([])
-        setIsLoading(false)
-        return
-      }
-
-      // Transform the data to include name, reason, and time for display
-      const transformedData = data.map((appointment: Appointment) => {
-        // Extract time from the date
-        const appointmentDate = new Date(appointment.date)
-        const time = appointmentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-
-        return {
-          ...appointment,
-          // These are placeholders - in a real app you would get this data from the API
-          name: `Patient #${appointment.patient_id}`,
-          reason: appointment.note || "Appointment",
-          time: time,
+        // Create the filter object for the POST request
+        const filter = {
+          medecin_id: medecin_id,
+          date: formattedDate,
         }
-      })
 
-      setAppointments(transformedData)
-    } catch (err) {
-      // For any exception, just set empty appointments instead of showing error
-      console.error("Error fetching appointments:", err)
-      setAppointments([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, []) // Empty dependency array since it doesn't depend on any state
+        // Make POST request to the backend endpoint
+        const response = await fetch("http://localhost:8000/appointments/bydate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(filter),
+        })
+
+        // Handle all non-200 responses here
+        if (!response.ok) {
+          // If it's a 404, we treat it as "no appointments" rather than an error
+          if (response.status === 404) {
+            setAppointments([])
+            setIsLoading(false)
+            return
+          }
+
+          // For status 500 or any other error, we'll also set empty appointments
+          // instead of showing an error message
+          setAppointments([])
+          setIsLoading(false)
+          return
+        }
+
+        const data = await response.json()
+
+        // If data is empty array or null/undefined, handle it gracefully
+        if (!data || data.length === 0) {
+          setAppointments([])
+          setIsLoading(false)
+          return
+        }
+
+        // Transform the data to include name, reason, and time for display
+        const transformedData = data.map((appointment: Appointment) => {
+          // Extract time from the date
+          const appointmentDate = new Date(appointment.date)
+          const time = appointmentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+
+          return {
+            ...appointment,
+            // These are placeholders - in a real app you would get this data from the API
+            name: `Patient #${appointment.patient_id}`,
+            reason: appointment.note || "Appointment",
+            time: time,
+          }
+        })
+
+        const appointmentsData = transformedData
+        setAppointments(appointmentsData)
+
+        // Check which appointments have prescriptions
+        checkPrescriptionsForAppointments(appointmentsData)
+      } catch (err) {
+        // For any exception, just set empty appointments instead of showing error
+        console.error("Error fetching appointments:", err)
+        setAppointments([])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [checkPrescriptionsForAppointments],
+  ) // Add checkPrescriptionsForAppointments to the dependency array
 
   useEffect(() => {
     fetchAppointmentsByDate(selectedDate)
   }, [selectedDate, fetchAppointmentsByDate]) // Added fetchAppointmentsByDate to dependencies
+
+  // Add an event listener for prescription creation
+  useEffect(() => {
+    // Set up event listener for prescription creation
+    const handlePrescriptionCreated = (event: Event) => {
+      console.log("Prescription created event detected")
+
+      // Check if it's a CustomEvent with detail
+      if (event instanceof CustomEvent && event.detail) {
+        console.log("Prescription created for appointment:", event.detail.appointmentId)
+
+        // Immediately update the local state to show the prescription button
+        setAppointmentsWithPrescriptions((prev) => {
+          if (!prev.includes(event.detail.appointmentId)) {
+            return [...prev, event.detail.appointmentId]
+          }
+          return prev
+        })
+
+        // Also update the appointment's has_prescription flag
+        setAppointments((prev) =>
+          prev.map((app) => (app.id === event.detail.appointmentId ? { ...app, has_prescription: true } : app)),
+        )
+      }
+
+      // Refresh appointments to update prescription status
+      fetchAppointmentsByDate(selectedDate)
+    }
+
+    window.addEventListener("prescriptionCreated", handlePrescriptionCreated)
+
+    return () => {
+      window.removeEventListener("prescriptionCreated", handlePrescriptionCreated)
+    }
+  }, [fetchAppointmentsByDate, selectedDate])
 
   // Get appointments for a specific date
   const getAppointmentsForDate = (date: Date) => {
@@ -554,6 +713,16 @@ export default function AppointmentCalendar() {
     const today = new Date()
     today.setHours(0, 0, 0, 0) // Reset time part for date comparison
     return date < today
+  }
+
+  // Function to check if an appointment has a prescription
+  const hasPrescription = (appointmentId: number): boolean => {
+    // Check both the state array and the appointment's has_prescription property
+    const appointment = appointments.find((a) => a.id === appointmentId)
+    const hasFlag = appointment?.has_prescription === true
+    const inArray = appointmentsWithPrescriptions.includes(appointmentId)
+    console.log(`Checking if appointment ${appointmentId} has prescription:`, { hasFlag, inArray })
+    return hasFlag || inArray
   }
 
   return (
@@ -708,6 +877,8 @@ export default function AppointmentCalendar() {
                           const appointmentDate = new Date(appointment.date)
                           const isPastAppointment = isDateInPast(appointmentDate)
                           const isHighlighted = appointment.id === highlightedAppointmentId
+                          const appointmentHasPrescription =
+                            appointment.has_prescription || hasPrescription(appointment.id)
 
                           return (
                             <tr
@@ -753,6 +924,15 @@ export default function AppointmentCalendar() {
                                 >
                                   {appointment.status}
                                 </span>
+                                {appointment.status === "finished" && (
+                                  <button
+                                    onClick={(event) => handleViewPrescriptionDetails(appointment.id, event)}
+                                    className="ml-2 rounded-full bg-teal-500 px-4 py-1 text-xs font-semibold text-white hover:bg-teal-600 transition-colors flex items-center shadow-sm"
+                                  >
+                                    <FileText className="w-3 h-3 mr-1" />
+                                    View Prescription
+                                  </button>
+                                )}
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex items-center space-x-2">
@@ -859,6 +1039,33 @@ export default function AppointmentCalendar() {
                                           >
                                             Add Note
                                           </button>
+                                          {/* Add Finished button for confirmed appointments */}
+                                          <button
+                                            onClick={(event) => handleFinishAppointment(appointment.id, event)}
+                                            className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors shadow-sm flex items-center"
+                                          >
+                                            <FileText className="w-3 h-3 mr-1" />
+                                            Finished
+                                          </button>
+                                        </>
+                                      ) : appointment.status === "finished" ? (
+                                        <>
+                                          <button
+                                            onClick={(event) => handleViewPatientDetails(appointment.patient_id, event)}
+                                            className="rounded-full bg-purple-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-600 transition-colors flex items-center shadow-sm"
+                                          >
+                                            <User className="w-3 h-3 mr-1" />
+                                            User Details
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm"
+                                          >
+                                            Add Note
+                                          </button>
                                         </>
                                       ) : (
                                         <>
@@ -911,12 +1118,38 @@ export default function AppointmentCalendar() {
         onSave={saveAppointment}
         onCancel={cancelEdit}
       />
+
+      {/* Appointment Note Popup */}
       <AppointmentNotePopup
         isOpen={isNotePopupOpen}
         appointment={selectedAppointment}
         onClose={() => setIsNotePopupOpen(false)}
         onNoteUpdate={handleNoteUpdate}
       />
+
+      {/* Prescription Form */}
+      {isPrescriptionFormOpen && appointmentForPrescription && (
+        <PrescriptionForm
+          isOpen={isPrescriptionFormOpen}
+          appointment={appointmentForPrescription}
+          onClose={() => {
+            setIsPrescriptionFormOpen(false)
+            // After closing the prescription form, refresh the appointments to check for new prescriptions
+            fetchAppointmentsByDate(selectedDate)
+          }}
+        />
+      )}
+
+      {/* Prescription Details */}
+      {isPrescriptionDetailsOpen && appointmentForPrescriptionDetails && (
+        <PrescriptionDetails
+          appointmentId={appointmentForPrescriptionDetails}
+          onClose={() => {
+            setIsPrescriptionDetailsOpen(false)
+            setAppointmentForPrescriptionDetails(null)
+          }}
+        />
+      )}
 
       {/* Fixed Footer */}
       <div className="flex-shrink-0 mt-auto">
