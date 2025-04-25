@@ -95,7 +95,7 @@ async def get_medicine_details(medicine_id: int, db: AsyncSession = Depends(get_
             adresse=medicine.adresse,
             diplome=medicine.diplome,
             grade=medicine.grade,
-            annee_experience=medicine.annee_experience,  )
+            ville=medicine.ville,  )
         
     except Exception as e:
         print(f"Error: {str(e)}")
@@ -107,6 +107,7 @@ async def update_medecin_details(
     telephone: Optional[str] = Form(None),
     photo: Optional[UploadFile] = File(None),
     adress:  Optional[str] = Form(None),
+    ville:  Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -132,6 +133,10 @@ async def update_medecin_details(
 
         if adress is not None:
             medecin.adresse = adress
+        
+        if ville is not None:
+            medecin.ville = ville
+        
 
         # Handle photo upload like register function
         if photo is not None:
@@ -151,10 +156,11 @@ async def update_medecin_details(
 
         return {
             "message": "medecin details updated successfully",
-            "patient": {
+            "medecin": {
                 "id": medecin.id,
                 "user_id": medecin.user_id,
-                "adress": medecin.adresse
+                "adress": medecin.adresse,
+                "ville": medecin.ville
             },
             "user": {
                 "nom": user.nom,
@@ -265,7 +271,7 @@ async def get_all_medecins(db: AsyncSession = Depends(get_db)):
                 adresse=med.adresse,
                 diplome=med.diplome,
                 grade=med.grade,
-                annee_experience=med.annee_experience,
+                ville=med.ville,
             )
             for med, user in medecins
         ]

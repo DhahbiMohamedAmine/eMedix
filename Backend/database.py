@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv  # type: ignore
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine  # type: ignore
 from sqlalchemy.orm import sessionmaker  # type: ignore
-from sqlalchemy.ext.declarative import declarative_base  # type: ignore
+from sqlalchemy.orm import declarative_base
+
 
 # Load environment variables from .env file
 load_dotenv()

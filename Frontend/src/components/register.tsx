@@ -21,7 +21,7 @@ export default function Register() {
     adresse: "",
     diplome: "",
     grade: "",
-    annee_experience: "",
+    ville: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,7 +76,7 @@ export default function Register() {
         }
         formDataToSend.append("date_naissance", formData.date_naissance)
       } else if (role === "medecin") {
-        if (!formData.adresse || !formData.diplome || !formData.grade || !formData.annee_experience) {
+        if (!formData.adresse || !formData.diplome || !formData.grade || !formData.ville) {
           setError("All medical details are required for doctors")
           setIsSubmitting(false)
           return
@@ -84,7 +84,7 @@ export default function Register() {
         formDataToSend.append("adresse", formData.adresse)
         formDataToSend.append("diplome", formData.diplome)
         formDataToSend.append("grade", formData.grade)
-        formDataToSend.append("annee_experience", formData.annee_experience.toString())
+        formDataToSend.append("ville", formData.ville)
       }
 
       // Make API call to backend
@@ -113,7 +113,7 @@ export default function Register() {
         adresse: "",
         diplome: "",
         grade: "",
-        annee_experience: "",
+        ville: "",
       })
     } catch (error) {
       console.error("Registration error:", error)
@@ -371,19 +371,43 @@ export default function Register() {
                   </div>
 
                   <div>
-                    <label htmlFor="annee_experience" className="block text-sm font-medium text-gray-700">
-                      Years of Experience
+                    <label htmlFor="ville" className="block text-sm font-medium text-gray-700">
+                      City
                     </label>
-                    <input
-                      type="number"
-                      id="annee_experience"
-                      name="annee_experience"
-                      value={formData.annee_experience}
+                    <select
+                      id="ville"
+                      name="ville"
+                      value={formData.ville}
                       onChange={handleChange}
-                      min="0"
                       className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       required
-                    />
+                    >
+                      <option value="">Select a city</option>
+                      <option value="Tunis">Tunis</option>
+                      <option value="Sfax">Sfax</option>
+                      <option value="Sousse">Sousse</option>
+                      <option value="Kairouan">Kairouan</option>
+                      <option value="Bizerte">Bizerte</option>
+                      <option value="Gabès">Gabès</option>
+                      <option value="Ariana">Ariana</option>
+                      <option value="Gafsa">Gafsa</option>
+                      <option value="Monastir">Monastir</option>
+                      <option value="Ben Arous">Ben Arous</option>
+                      <option value="Kasserine">Kasserine</option>
+                      <option value="Médenine">Médenine</option>
+                      <option value="Nabeul">Nabeul</option>
+                      <option value="Tataouine">Tataouine</option>
+                      <option value="Béja">Béja</option>
+                      <option value="Jendouba">Jendouba</option>
+                      <option value="Kef">Kef</option>
+                      <option value="Mahdia">Mahdia</option>
+                      <option value="Sidi Bouzid">Sidi Bouzid</option>
+                      <option value="Tozeur">Tozeur</option>
+                      <option value="Zaghouan">Zaghouan</option>
+                      <option value="Kebili">Kebili</option>
+                      <option value="Siliana">Siliana</option>
+                      <option value="Manouba">Manouba</option>
+                    </select>
                   </div>
                 </>
               )}
@@ -415,4 +439,3 @@ export default function Register() {
     </main>
   )
 }
-

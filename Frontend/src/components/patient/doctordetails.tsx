@@ -1,7 +1,9 @@
 "use client"
-import Image from "next/image"
+
 import { useState, useEffect } from "react"
-import axios from "axios"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, Calendar, Mail, MapPin, Phone, Award, GraduationCap, Building } from "lucide-react"
 
 interface DoctorDetails {
   id: number
@@ -17,130 +19,270 @@ interface DoctorDetails {
   adresse: string
   diplome: string
   grade: string
-  annee_experience: number
+  ville: string
 }
 
-interface DoctorDetailsPopupProps {
-  isOpen: boolean
-  doctorId: number | null
-  onClose: () => void
+interface DoctorDetailsProps {
+  doctorId?: string | number
+  showHeader?: boolean
+  showFooter?: boolean
+  showBackButton?: boolean
 }
 
-export default function DoctorDetailsPopup({ isOpen, doctorId, onClose }: DoctorDetailsPopupProps) {
+export default function DoctorDetails({ doctorId, showBackButton = true }: DoctorDetailsProps) {
   const [doctorDetails, setDoctorDetails] = useState<DoctorDetails | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    if (isOpen && doctorId) {
-      fetchDoctorDetails(doctorId)
-    }
-  }, [isOpen, doctorId])
+    const fetchDoctorDetails = async () => {
+      if (!doctorId) {
+        setError("No doctor ID provided")
+        setIsLoading(false)
+        return
+      }
 
-  const fetchDoctorDetails = async (id: number) => {
-    setIsLoading(true)
-    setError(null)
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch(`http://localhost:8000/users/medecin/${doctorId}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load doctor details (Status: ${response.status})`)
+        }
+        const data = await response.json()
+        setDoctorDetails(data)
+      } catch (err) {
+        console.error("Error fetching doctor details:", err)
+        setError("Failed to load doctor details. Please try again later.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDoctorDetails()
+  }, [doctorId])
+
+  const getImageUrl = (photoPath: string | null) => {
+    if (!photoPath) return "/images/doctor-placeholder.jpg"
 
     try {
-      const response = await axios.get(`http://localhost:8000/users/medecin/${id}`)
-      setDoctorDetails(response.data)
-    } catch (err) {
-      console.error("Error fetching doctor details:", err)
-      setError("Failed to load doctor details")
-    } finally {
-      setIsLoading(false)
+      // If it's already a full URL, return it
+      if (photoPath.startsWith("http")) return photoPath
+
+      // Make sure the path starts with a slash
+      const formattedPath = photoPath.startsWith("/") ? photoPath : `/${photoPath}`
+      return `http://localhost:8000${formattedPath}`
+    } catch (error) {
+      console.error("Error formatting image URL:", error)
+      return "/images/doctor-placeholder.jpg"
     }
   }
 
-  if (!isOpen) return null
+  const handleBookAppointment = () => {
+    if (doctorDetails) {
+      router.push(`/patient/appointment?doctor=${doctorDetails.id}`)
+    }
+  }
+
+  const handleGoBack = () => {
+    router.back()
+  }
+
+  const handleGetDirections = () => {
+    if (doctorDetails?.adresse) {
+      // Get the user's current location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const userLocation = `${position.coords.latitude},${position.coords.longitude}`;
+          const destination = encodeURIComponent(doctorDetails.adresse);
+          const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation}&destination=${destination}`;
+
+          // Open Google Maps with the directions
+          window.open(directionsUrl, "_blank");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        }, (error) => {
+          alert("Unable to retrieve your location. Please enable location services.");
+        });
+      } else {
+        alert("Geolocation is not supported by this browser.");
+      }
+    } else {
+      alert("Doctor's address is unavailable.");
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Doctor Details</h2>
+    <>
+      {showBackButton && (
+        <button
+          onClick={handleGoBack}
+          className="mb-6 flex items-center text-gray-600 hover:text-[#2DD4BF] transition-colors"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Doctors
+        </button>
+      )}
 
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
-            </div>
-          ) : error ? (
-            <div className="text-red-500 p-4 text-center">{error}</div>
-          ) : doctorDetails ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center mb-6">
-                {doctorDetails.photo ? (
-                 <Image
-                 src={
-                   doctorDetails.photo.startsWith("http")
-                     ? doctorDetails.photo
-                     : `http://localhost:8000${doctorDetails.photo}`
-                 }
-                 alt={`${doctorDetails.prenom} ${doctorDetails.nom}`}
-                 width={120} // Ensure a fixed width
-                 height={120} // Ensure a fixed height
-                 unoptimized
-                 className="w-28 h-28 rounded-full object-cover border-2 border-teal-500"
-               />
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-teal-100 flex items-center justify-center text-teal-500 text-2xl font-bold">
-                    {doctorDetails.prenom.charAt(0)}
-                    {doctorDetails.nom.charAt(0)}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">First Name</p>
-                  <p className="font-medium">{doctorDetails.prenom}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Last Name</p>
-                  <p className="font-medium">{doctorDetails.nom}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium truncate" title={doctorDetails.email}>
-                    {doctorDetails.email}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <p className="font-medium">{doctorDetails.telephone}</p>
-                </div>
-                
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Address</p>
-                  <p className="font-medium">{doctorDetails.adresse}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Diploma</p>
-                  <p className="font-medium">{doctorDetails.diplome}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Grade</p>
-                  <p className="font-medium">{doctorDetails.grade}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500">Years of Experience</p>
-                  <p className="font-medium">{doctorDetails.annee_experience} years</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-500 italic text-center">No doctor information available.</p>
+      {isLoading ? (
+        <div className="flex h-[60vh] items-center justify-center">
+          <div className="h-16 w-16 animate-spin rounded-full border-b-2 border-t-2 border-[#2DD4BF]"></div>
+        </div>
+      ) : error ? (
+        <div className="rounded-lg bg-red-50 p-6 text-center">
+          <p className="text-red-600">{error}</p>
+          {showBackButton && (
+            <button
+              onClick={handleGoBack}
+              className="mt-4 rounded-md bg-[#2DD4BF] px-4 py-2 text-white hover:bg-[#20B8A2]"
+            >
+              Go Back
+            </button>
           )}
         </div>
-        <div className="bg-gray-50 px-6 py-3 flex justify-end rounded-b-lg">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            Close
-          </button>
+      ) : doctorDetails ? (
+        <div className="grid gap-8 md:grid-cols-3">
+          {/* Left Column - Profile Image and Contact */}
+          <div className="md:col-span-1">
+            <div className="overflow-hidden rounded-xl bg-white shadow-md">
+              <div className="h-40 bg-gradient-to-r from-[#2DD4BF] to-[#3B82F6]"></div>
+              <div className="relative px-6 pb-6">
+                <div className="absolute -top-56 left-1/2 -translate-x-1/2 transform ">
+                  {doctorDetails.photo ? (
+                    <Image
+                      src={getImageUrl(doctorDetails.photo) || "/placeholder.svg"}
+                      alt={`Dr. ${doctorDetails.prenom} ${doctorDetails.nom}`}
+                      width={120}
+                      height={120}
+                      unoptimized
+                      className="h-32 w-32 rounded-full border-4 border-white object-cover shadow-lg"
+                    />
+                  ) : (
+                    <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-gray-200 text-3xl font-bold text-gray-600 shadow-lg">
+                      {doctorDetails.prenom.charAt(0)}
+                      {doctorDetails.nom.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-20 text-center">
+                  <h1 className="text-2xl font-bold text-gray-800">{`Dr. ${doctorDetails.prenom} ${doctorDetails.nom}`}</h1>
+                  <p className="text-[#2DD4BF]">{doctorDetails.grade}</p>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <div className="flex items-center">
+                    <Phone className="mr-3 h-5 w-5 text-[#2DD4BF]" />
+                    <span>{doctorDetails.telephone}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Mail className="mr-3 h-5 w-5 text-[#2DD4BF]" />
+                    <span className="truncate">{doctorDetails.email}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <MapPin className="mr-3 h-5 w-5 shrink-0 text-[#2DD4BF]" />
+                    <span>{doctorDetails.adresse}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Building className="mr-3 h-5 w-5 text-[#2DD4BF]" />
+                    <span>{doctorDetails.ville}</span>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={handleBookAppointment}
+                    className="w-full rounded-md bg-[#2DD4BF] py-3 text-center font-medium text-white shadow-md hover:bg-[#20B8A2] focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:ring-offset-2"
+                  >
+                    <Calendar className="mr-2 inline-block h-5 w-5" />
+                    Book Appointment
+                  </button>
+                  <button
+                    onClick={handleGetDirections}
+                    className="mt-4 w-full rounded-md bg-[#2DD4BF] py-3 text-center font-medium text-white shadow-md hover:bg-[#20B8A2] focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:ring-offset-2"
+                  >
+                    Get Directions
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Professional Details */}
+          <div className="md:col-span-2">
+            <div className="space-y-6">
+              <div className="overflow-hidden rounded-xl bg-white p-6 shadow-md">
+                <h2 className="mb-4 text-xl font-semibold text-gray-800">Professional Information</h2>
+
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center">
+                      <GraduationCap className="mr-3 h-5 w-5 text-[#2DD4BF]" />
+                      <h3 className="text-lg font-medium text-gray-700">Education & Diploma</h3>
+                    </div>
+                    <p className="mt-2 pl-8 text-gray-600">{doctorDetails.diplome}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center">
+                      <Award className="mr-3 h-5 w-5 text-[#2DD4BF]" />
+                      <h3 className="text-lg font-medium text-gray-700">Grade & Specialization</h3>
+                    </div>
+                    <p className="mt-2 pl-8 text-gray-600">{doctorDetails.grade}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl bg-white p-6 shadow-md">
+                <h2 className="mb-4 text-xl font-semibold text-gray-800">About Doctor</h2>
+                <p className="text-gray-600">
+                  Dr. {doctorDetails.prenom} {doctorDetails.nom} is a highly qualified healthcare professional
+                  specializing in {doctorDetails.grade}. With extensive education and training from prestigious
+                  institutions, Dr. {doctorDetails.nom} is committed to providing exceptional patient care.
+                </p>
+                <p className="mt-4 text-gray-600">
+                  Based in {doctorDetails.ville}, Dr. {doctorDetails.nom} has established a reputation for excellence in
+                  the medical community. Patients appreciate their thorough approach, clear communication, and
+                  dedication to achieving the best possible health outcomes.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-xl bg-white p-6 shadow-md">
+                <h2 className="mb-4 text-xl font-semibold text-gray-800">Working Hours</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium text-gray-700">Monday - Friday</h3>
+                    <p className="text-gray-600">9:00 AM - 5:00 PM</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-700">Saturday</h3>
+                    <p className="text-gray-600">9:00 AM - 1:00 PM</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-700">Sunday</h3>
+                    <p className="text-gray-600">Closed</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm italic text-gray-500">
+                  * Working hours may vary. Please book an appointment to confirm availability.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      ) : (
+        <div className="rounded-lg bg-yellow-50 p-6 text-center">
+          <p className="text-yellow-600">No doctor information available.</p>
+          {showBackButton && (
+            <button
+              onClick={handleGoBack}
+              className="mt-4 rounded-md bg-[#2DD4BF] px-4 py-2 text-white hover:bg-[#20B8A2]"
+            >
+              Go Back
+            </button>
+          )}
+        </div>
+      )}
+    </>
   )
 }

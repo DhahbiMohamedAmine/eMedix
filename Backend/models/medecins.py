@@ -11,7 +11,7 @@ class Medecin(Base):
     adresse = Column(String(255))
     diplome = Column(String(100))
     grade = Column(String(50))
-    annee_experience = Column(Integer)
+    ville = Column(String(100))
 
     user = relationship("User", back_populates="medecin")
     appointments = relationship("Appointment", back_populates="medecin")
