@@ -20,5 +20,4 @@ class MedicamentUpdate(BaseModel):
 class MedicamentResponse(MedicamentBase):
     id: int
 
-    class Config:
-        orm_mode = True
+   

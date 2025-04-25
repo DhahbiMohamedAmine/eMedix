@@ -19,10 +19,10 @@ export default function DoctorProfilePage() {
     password: "",
     telephone: "",
     photo: "" as string | File,
-    adresse: "",
+    adress: "",
     diplome: "",
     grade: "",
-    annee_experience: 0,
+    ville: "",
   })
 
   const [doctorId, setDoctorId] = useState(null)
@@ -60,10 +60,10 @@ export default function DoctorProfilePage() {
           password: data.password || "",
           telephone: data.telephone || "",
           photo: data.photo || "",
-          adresse: data.adresse || "",
+          adress: data.adress || "",
           diplome: data.diplome || "",
           grade: data.grade || "",
-          annee_experience: data.annee_experience || 0,
+          ville: data.ville || "",
         })
       } catch (error) {
         console.error("Error fetching doctor data:", error)
@@ -84,7 +84,7 @@ export default function DoctorProfilePage() {
   }, [notification])
 
   // Handle Input Change
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setDoctor({ ...doctor, [e.target.id]: e.target.value })
   }
 
@@ -98,10 +98,10 @@ export default function DoctorProfilePage() {
       formData.append("prenom", doctor.prenom)
       formData.append("telephone", doctor.telephone)
       formData.append("email", doctor.email)
-      formData.append("adresse", doctor.adresse || "")
+      formData.append("adress", doctor.adress || "")
       formData.append("diplome", doctor.diplome || "")
       formData.append("grade", doctor.grade || "")
-      formData.append("annee_experience", doctor.annee_experience.toString())
+      formData.append("ville", doctor.ville || "")
 
       if (doctor.photo instanceof File) {
         formData.append("photo", doctor.photo)
@@ -299,12 +299,12 @@ export default function DoctorProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="adresse" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="adress" className="block text-sm font-medium text-gray-700">
                       Address
                     </label>
                     <textarea
-                      id="adresse"
-                      value={doctor.adresse || ""}
+                      id="adress"
+                      value={doctor.adress || ""}
                       onChange={handleChange}
                       className="w-full rounded-md border px-4 py-3 focus:border-[#2DD4BF] focus:ring-[#2DD4BF]/20"
                       rows={2}
@@ -339,17 +339,67 @@ export default function DoctorProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="annee_experience" className="block text-sm font-medium text-gray-700">
-                      Years of Experience
+                    <label htmlFor="ville" className="block text-sm font-medium text-gray-700">
+                      City
                     </label>
-                    <input
-                      type="number"
-                      id="annee_experience"
-                      value={doctor.annee_experience || 0}
-                      disabled
-                      min="0"
-                      className="w-full bg-gray-100 rounded-md border px-4 py-3"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={doctor.ville || "Not specified"}
+                        disabled
+                        className="w-full bg-gray-100 rounded-md border px-4 py-3"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const citySelect = document.getElementById("city-select")
+                          if (citySelect) {
+                            citySelect.classList.toggle("hidden")
+                          }
+                        }}
+                        className="px-4 py-3 bg-[#2DD4BF] text-white rounded-md hover:bg-[#2DD4BF]/90"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <select
+                      id="city-select"
+                      className="w-full rounded-md border px-4 py-3 focus:border-[#2DD4BF] focus:ring-[#2DD4BF]/20 mt-2 hidden"
+                      onChange={(e) => {
+                        setDoctor({ ...doctor, ville: e.target.value })
+                        const citySelect = document.getElementById("city-select")
+                        if (citySelect) {
+                          citySelect.classList.add("hidden")
+                        }
+                      }}
+                      value={doctor.ville || ""}
+                    >
+                      <option value="">Select a city</option>
+                      <option value="Tunis">Tunis</option>
+                      <option value="Sfax">Sfax</option>
+                      <option value="Sousse">Sousse</option>
+                      <option value="Kairouan">Kairouan</option>
+                      <option value="Bizerte">Bizerte</option>
+                      <option value="Gabès">Gabès</option>
+                      <option value="Ariana">Ariana</option>
+                      <option value="Gafsa">Gafsa</option>
+                      <option value="Monastir">Monastir</option>
+                      <option value="Ben Arous">Ben Arous</option>
+                      <option value="Kasserine">Kasserine</option>
+                      <option value="Médenine">Médenine</option>
+                      <option value="Nabeul">Nabeul</option>
+                      <option value="Tataouine">Tataouine</option>
+                      <option value="Béja">Béja</option>
+                      <option value="Jendouba">Jendouba</option>
+                      <option value="Kef">Kef</option>
+                      <option value="Mahdia">Mahdia</option>
+                      <option value="Sidi Bouzid">Sidi Bouzid</option>
+                      <option value="Tozeur">Tozeur</option>
+                      <option value="Zaghouan">Zaghouan</option>
+                      <option value="Kebili">Kebili</option>
+                      <option value="Siliana">Siliana</option>
+                      <option value="Manouba">Manouba</option>
+                    </select>
                   </div>
 
                   <div className="pt-2">
@@ -378,4 +428,3 @@ export default function DoctorProfilePage() {
     </main>
   )
 }
-

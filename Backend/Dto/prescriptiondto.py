@@ -18,5 +18,3 @@ class PrescriptionOut(BaseModel):
     appointment_id: int
     medicament_ids: List[int]
 
-    class Config:
-        orm_mode = True

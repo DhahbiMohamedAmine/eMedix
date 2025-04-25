@@ -16,19 +16,8 @@ class UserRequest(BaseModel):
     adresse: Optional[str] = None
     diplome: Optional[str] = None
     grade: Optional[str] = None
-    annee_experience: Optional[int] = None
+    ville: Optional[str] = None
 
-    class Config:
-        # This will allow only fields relevant to the role
-        # "role" determines the required fields
-        @staticmethod
-        def schema_extra(schema, model):
-            if model.role == "patient":
-                # Adjust schema for "patient" role to only show necessary fields
-                schema['properties'].pop('adresse', None)
-                schema['properties'].pop('diplome', None)
-                schema['properties'].pop('grade', None)
-                schema['properties'].pop('annee_experience', None)
 
 
 class UserResponse(BaseModel):
@@ -47,6 +36,7 @@ class UpdatePatientProfileRequest(BaseModel):
 
 class UpdateMedcinProfileRequest(BaseModel):
     adresse: Optional[str]
+    ville: Optional[str]
     telephone: Optional[str]
     photo: Optional[str]
     password:str
@@ -69,7 +59,7 @@ class MedcinResponse(BaseModel):
     adresse: Optional[str]
     diplome: Optional[str] 
     grade: Optional[str] 
-    annee_experience: Optional[int]  
+    ville: Optional[str]  
 
 class PatientResponse(BaseModel):
     id: int
@@ -80,6 +70,3 @@ class PatientResponse(BaseModel):
     email: str
     photo: Optional[str]
     date_naissance: date
-
-    class Config:
-        from_attributes = True  
