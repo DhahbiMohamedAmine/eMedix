@@ -54,7 +54,6 @@ class MedcinResponse(BaseModel):
     prenom: str
     telephone: str
     email: str
-    password: str
     photo: Optional[str] 
     adresse: Optional[str]
     diplome: Optional[str] 

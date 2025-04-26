@@ -90,7 +90,7 @@ export default function Login() {
                 }),
               )
             }
-            router.push("/admin/profile")
+            router.push("/admin/dashboard")
             break
           default:
             setError("Unknown user role")

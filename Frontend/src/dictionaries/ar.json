@@ -1,0 +1,71 @@
+{
+  "dashboard": {
+    "title": "لوحة التحكم الطبية",
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "patients": "المرضى",
+    "doctors": "الأطباء",
+    "confirmations": "التأكيدات",
+    "logout": "تسجيل الخروج",
+    "searchHere": "ابحث هنا",
+    "patientList": "قائمة المرضى",
+    "searchPatients": "البحث عن المرضى...",
+    "doctorsList": "قائمة الأطباء",
+    "searchDoctors": "البحث عن الأطباء...",
+    "appointmentsPerDay": "المواعيد حسب اليوم",
+    "appointmentsPerDoctor": "المواعيد حسب الطبيب",
+    "lastMonthDistribution": "توزيع الشهر الماضي",
+    "basedOnActualData": "بناءً على بيانات النظام الفعلية",
+    "updatedToday": "تم التحديث اليوم",
+    "photo": "الصورة",
+    "name": "الاسم",
+    "age": "العمر",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "city": "المدينة",
+    "address": "العنوان",
+    "grade": "الدرجة",
+    "diploma": "الشهادة",
+    "years": "سنوات",
+    "showing": "عرض",
+    "to": "إلى",
+    "of": "من",
+    "page": "صفحة",
+    "adminDashboard": "لوحة تحكم المشرف",
+    "theme": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام",
+      "toggleTheme": "تبديل السمة"
+    },
+    "projects": {
+      "title": "المشاريع",
+      "done": "مكتمل",
+      "thisMonth": "هذا الشهر"
+    },
+    "orders": {
+      "title": "نظرة عامة على الطلبات",
+      "thisMonth": "هذا الشهر"
+    },
+    "stats": {
+      "totalAppointments": "إجمالي المواعيد",
+      "totalPatients": "إجمالي المرضى",
+      "activeDoctors": "الأطباء النشطين",
+      "avgWaitTime": "متوسط وقت الانتظار",
+      "thanLastMonth": "مقارنة بالشهر الماضي",
+      "newThisMonth": "جديد هذا الشهر",
+      "min": "دقيقة",
+      "errorLoadingData": "خطأ في تحميل البيانات"
+    },
+    "yearlyAppointments": {
+      "title": "المواعيد حسب الطبيب (سنوي)",
+      "subtitle": "التوزيع السنوي للمواعيد حسب الطبيب",
+      "export": "تصدير",
+      "noData": "لا توجد بيانات متاحة لعام"
+    },
+    "patientsByAge": {
+      "title": "المرضى حسب العمر",
+      "subtitle": "توزيع المرضى حسب الفئة العمرية"
+    }
+  }
+}
