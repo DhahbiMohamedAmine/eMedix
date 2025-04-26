@@ -7,6 +7,7 @@ from routes.users_router import router as users_router
 from routes.tooth_router import router as tooth_router
 from routes.medicament_router import router as medicament_router
 from routes.prescription_router import router as prescription_router
+from routes.stats_router import router as stats_router
 app = FastAPI()
 
 # Include the authentication routes
@@ -16,6 +17,7 @@ app.include_router(users_router, prefix="/users", tags=["users"])
 app.include_router(tooth_router, prefix="/tooth", tags=["tooth"])
 app.include_router(medicament_router, prefix="/medicaments", tags=["medicaments"])
 app.include_router(prescription_router, prefix="/prescriptions", tags=["prescriptions"])
+app.include_router(stats_router, prefix="/stats", tags=["stats"])
 app.mount("/static", StaticFiles(directory="static"), name="static")
 origins = [
     "http://localhost:3000",  # Your frontend URL
