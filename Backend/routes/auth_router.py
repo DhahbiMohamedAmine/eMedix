@@ -433,4 +433,3 @@ async def google_auth(token: str = Body(...), db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=400, detail="Invalid token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
