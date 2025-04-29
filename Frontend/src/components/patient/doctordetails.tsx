@@ -237,13 +237,8 @@ export default function DoctorDetails({ doctorId, showBackButton = true }: Docto
                 <h2 className="mb-4 text-xl font-semibold text-gray-800">About Doctor</h2>
                 <p className="text-gray-600">
                   Dr. {doctorDetails.prenom} {doctorDetails.nom} is a highly qualified healthcare professional
-                  specializing in {doctorDetails.grade}. With extensive education and training from prestigious
+                  specializing in Orthodontics. With extensive education and training from prestigious
                   institutions, Dr. {doctorDetails.nom} is committed to providing exceptional patient care.
-                </p>
-                <p className="mt-4 text-gray-600">
-                  Based in {doctorDetails.ville}, Dr. {doctorDetails.nom} has established a reputation for excellence in
-                  the medical community. Patients appreciate their thorough approach, clear communication, and
-                  dedication to achieving the best possible health outcomes.
                 </p>
               </div>
 

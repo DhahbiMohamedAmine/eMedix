@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 import "../../../public/tailwind.css"
 import type React from "react"

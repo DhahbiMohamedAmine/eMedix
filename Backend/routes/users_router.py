@@ -249,6 +249,7 @@ async def get_all_medecins(db: AsyncSession = Depends(get_db)):
         query = (
             select(MedcineModel, UserModel)
             .join(UserModel, UserModel.id == MedcineModel.user_id)
+            .order_by(MedcineModel.id.asc())  # <-- Order by ID ascending
         )
 
         result = await db.execute(query)
@@ -281,4 +282,5 @@ async def get_all_medecins(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving medecins: {str(e)}")
+
 

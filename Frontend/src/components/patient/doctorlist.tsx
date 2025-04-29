@@ -1,12 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import Header from "@/components/patient/header"
 import Footer from "@/components/footer"
+import { Search, MapPin, Phone, Calendar, ChevronRight, X, Heart } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Doctor {
   id: number
@@ -28,12 +35,9 @@ export default function DoctorList() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCity, setSelectedCity] = useState("")
   const router = useRouter()
-  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null)
 
-  // Add console logs to debug
   const handleViewDoctorDetails = (doctorId: number) => {
     console.log("Navigating to doctor details with ID:", doctorId)
-    // Try using the router.push with a callback to catch errors
     try {
       router.push(`/patient/doctordetails/${doctorId}`)
     } catch (error) {
@@ -61,18 +65,11 @@ export default function DoctorList() {
     fetchDoctors()
   }, [])
 
-  // Let's simplify and just use one function for navigation
-  // Remove this function since we're using handleViewDoctorDetails
-  // const handleDoctorClick = (doctorId: number) => {
-  //   router.push(`/patient/doctordetails?id=${doctorId}`)
-  // }
-
   const handleBookAppointment = (event: React.MouseEvent, doctorId: number) => {
-    event.stopPropagation() // Prevent the card click event from firing
+    event.stopPropagation()
     router.push(`/patient/appointment?doctor=${doctorId}`)
   }
 
-  // Rest of your component remains the same...
   const cities = Array.from(new Set(doctors.map((doctor) => doctor.ville)))
     .filter(Boolean)
     .sort()
@@ -103,140 +100,215 @@ export default function DoctorList() {
   }
 
   return (
-    <main className="w-full bg-gray-100 min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-neutral-100">
       <Header />
-      <div className="flex min-h-[calc(100vh-120px)] items-center justify-center bg-gray-100 p-2 md:p-3 lg:p-4">
-        <div className="relative w-full max-w-[95%] rounded-lg bg-white shadow-xl flex flex-col">
-          <div className="absolute -right-2 -top-2 z-10 rotate-12 transform bg-[#2DD4BF] px-12 py-2 text-white shadow-md">
-            <span className="text-lg font-semibold">Our Doctors</span>
+
+      {/* Hero Section with Colorful Background */}
+      <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-primary-600 py-16 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white"></div>
+          <div className="absolute top-32 right-12 w-64 h-64 rounded-full bg-white"></div>
+          <div className="absolute bottom-12 left-1/3 w-48 h-48 rounded-full bg-white"></div>
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Find Your Perfect Doctor</h1>
+            <p className="text-primary-100 max-w-2xl mx-auto text-lg">
+              Browse our network of highly qualified healthcare professionals and book your appointment today
+            </p>
           </div>
+        </div>
+      </div>
 
-          <div className="flex flex-col h-full">
-            <div className="w-full p-4 md:p-6 flex flex-col">
-              <h1 className="mb-4 text-3xl font-bold text-gray-900">Find a Doctor</h1>
-
-              <div className="mb-6 space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                      Search by name
-                    </label>
-                    <input
-                      id="search"
-                      type="text"
-                      placeholder="Enter doctor name..."
-                      className="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-[#2DD4BF] focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="md:w-1/3">
-                    <label htmlFor="city-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                      Filter by city
-                    </label>
-                    <select
-                      id="city-filter"
-                      value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
-                      className="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-[#2DD4BF] focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]"
-                    >
-                      <option value="">All Cities</option>
-                      {cities.map((city) => (
-                        <option key={city} value={city}>
-                          {city}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {(searchTerm || selectedCity) && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleClearFilters}
-                      className="text-sm text-[#2DD4BF] hover:text-[#20B8A2] focus:outline-none"
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                )}
+      <div className="container mx-auto px-4 py-8">
+        {/* Search Panel */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-10 -mt-12 border border-primary-100 relative z-20">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-6 space-y-2">
+              <label htmlFor="search" className="text-sm font-medium text-neutral-700">
+                Doctor Name
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary-400" />
+                <Input
+                  id="search"
+                  placeholder="Search by name..."
+                  className="pl-9 border-neutral-300 focus-visible:ring-primary-500 focus-visible:border-primary-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
+            </div>
 
-              {loading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2DD4BF]"></div>
-                </div>
+            <div className="md:col-span-4 space-y-2">
+              <label htmlFor="city-filter" className="text-sm font-medium text-neutral-700">
+                Location
+              </label>
+              <Select value={selectedCity} onValueChange={setSelectedCity}>
+                <SelectTrigger id="city-filter" className="border-neutral-300 focus:ring-primary-500">
+                  <SelectValue placeholder="All Cities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Cities</SelectItem>
+                  {cities.map((city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2">
+              {searchTerm || selectedCity ? (
+                <Button
+                  variant="outline"
+                  onClick={handleClearFilters}
+                  className="w-full border-neutral-300 text-neutral-700 hover:bg-neutral-100"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear
+                </Button>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredDoctors.length > 0 ? (
-                    filteredDoctors.map((doctor) => (
-                      <div
-                        key={doctor.id}
-                        className="rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                        onClick={() => {
-                          console.log("Doctor card clicked, ID:", doctor.id)
-                          handleViewDoctorDetails(doctor.id)
-                        }}
-                      >
-                        <div className="flex h-full flex-col">
-                          <div className="relative h-48 w-full bg-gray-200">
-                            {doctor.photo ? (
-                              <Image
-                                src={getImageUrl(doctor.photo) || "/placeholder.svg"}
-                                alt={`${doctor.prenom} ${doctor.nom}`}
-                                fill
-                                unoptimized
-                                style={{ objectFit: "cover" }}
-                                onError={(e) => {
-                                  console.error("Image failed to load:", doctor.photo)
-                                  const target = e.target as HTMLImageElement
-                                  target.src = "/images/doctor-placeholder.jpg"
-                                }}
-                              />
-                            ) : (
-                              <div className="flex items-center justify-center h-full w-full bg-gray-300 text-gray-600 text-2xl font-bold">
-                                <span>
-                                  {doctor.prenom[0]}
-                                  {doctor.nom[0]}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col flex-grow p-4">
-                            <h3 className="text-xl font-bold text-gray-900">{`Dr. ${doctor.nom} ${doctor.prenom}`}</h3>
-                            <p className="text-sm text-[#2DD4BF] font-medium">{doctor.grade}</p>
-                            <p className="mt-2 text-sm text-gray-600">{doctor.diplome}</p>
-                            <p className="mt-1 text-sm text-gray-600">
-                              <span className="font-medium">City:</span> {doctor.ville}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-600">
-                              <span className="font-medium">Address:</span> {doctor.adresse}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-600">
-                              <span className="font-medium">Contact:</span> {doctor.telephone}
-                            </p>
-                            <div className="mt-auto pt-4">
-                              <button
-                                onClick={(e) => handleBookAppointment(e, doctor.id)}
-                                className="w-full rounded-md bg-[#2DD4BF] px-4 py-2 text-sm font-medium text-white hover:bg-[#20B8A2] focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:ring-offset-2"
-                              >
-                                Book Appointment
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full py-8 text-center text-gray-500">
-                      No doctors found matching your search criteria. Please try different filters.
-                    </div>
-                  )}
-                </div>
+                <Button className="w-full bg-primary-500 hover:bg-primary-600 text-white">
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </Button>
               )}
             </div>
           </div>
         </div>
+
+
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, index) => (
+              <Card key={index} className="overflow-hidden border border-primary-100">
+                <div className="h-48 bg-primary-50">
+                  <Skeleton className="h-full w-full" />
+                </div>
+                <CardContent className="p-5 space-y-4">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-10 w-full mt-4" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <>
+            {filteredDoctors.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDoctors.map((doctor) => (
+                  <Card
+                    key={doctor.id}
+                    className="overflow-hidden transition-all duration-300 hover:shadow-xl cursor-pointer group border border-primary-100"
+                    onClick={() => handleViewDoctorDetails(doctor.id)}
+                  >
+                    <div className="relative h-56 w-full overflow-hidden">
+                      {doctor.photo ? (
+                        <Image
+                          src={getImageUrl(doctor.photo) || "/placeholder.svg"}
+                          alt={`Dr. ${doctor.prenom} ${doctor.nom}`}
+                          fill
+                          unoptimized
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = "/images/doctor-placeholder.jpg"
+                          }}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white text-3xl font-bold">
+                          <span>
+                            {doctor.prenom[0]}
+                            {doctor.nom[0]}
+                          </span>
+                        </div>
+                      )}
+                      <div className="absolute top-0 left-0 w-full p-4 flex justify-between">
+                        <Badge className="bg-secondary-500 hover:bg-secondary-600">{doctor.grade}</Badge>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-full bg-white/80 text-neutral-700 hover:text-primary-500 hover:bg-white"
+                        >
+                          <Heart className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <CardContent className="p-5">
+                      <div className="mb-3">
+                        <h3 className="text-xl font-bold text-neutral-800 group-hover:text-primary-600 transition-colors">
+                          Dr. {doctor.prenom} {doctor.nom}
+                        </h3>
+                        <p className="text-sm text-primary-600 font-medium mt-1">{doctor.diplome}</p>
+                      </div>
+
+                      <div className="space-y-2 mb-6 bg-neutral-50 p-3 rounded-lg">
+                        <div className="flex items-start">
+                          <MapPin className="h-4 w-4 text-primary-500 mt-0.5 mr-2 flex-shrink-0" />
+                          <p className="text-sm text-neutral-600">
+                            {doctor.adresse}, <span className="font-medium text-primary-700">{doctor.ville}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center">
+                          <Phone className="h-4 w-4 text-primary-500 mr-2 flex-shrink-0" />
+                          <p className="text-sm text-neutral-600">{doctor.telephone}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-auto pt-4 border-t border-primary-100">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-neutral-600 hover:text-primary-600 p-0 hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleViewDoctorDetails(doctor.id)
+                          }}
+                        >
+                          View Profile
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          onClick={(e) => handleBookAppointment(e, doctor.id)}
+                          className="bg-primary-500 hover:bg-primary-600 text-white"
+                          size="sm"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Book Now
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 bg-white rounded-lg shadow border border-primary-100">
+                <div className="mx-auto w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mb-4">
+                  <Search className="h-8 w-8 text-primary-400" />
+                </div>
+                <h3 className="text-xl font-medium text-neutral-800 mb-2">No doctors found</h3>
+                <p className="text-neutral-500 max-w-md mx-auto mb-6">
+                  We couldn t find any doctors matching your search criteria. Please try different filters.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={handleClearFilters}
+                  className="border-primary-200 text-primary-700 hover:bg-primary-50"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </div>
       <Footer />
     </main>
