@@ -14,8 +14,6 @@ class ToothOut(BaseModel):
     note: Optional[str]
     status: str 
     
-    class Config:
-        orm_mode = True
 
 class PatientOut(BaseModel):
     id: int
@@ -23,5 +21,4 @@ class PatientOut(BaseModel):
     date_naissance: date
     teeth: List[ToothOut] = []
 
-    class Config:
-        orm_mode = True
+

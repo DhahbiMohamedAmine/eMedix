@@ -1,9 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import { FileText, ChevronDown, ChevronUp, Download, AlertCircle, CheckCircle, X, Plus } from "lucide-react"
-import Link from "next/link"
+import type React from "react"
+import { useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
+import Image from "next/image"
+import Header from "./header"
+import Footer from "../../components/footer"
+import { AlertCircle, CheckCircle, X } from "lucide-react"
 
 interface Toast {
   id: string
@@ -11,13 +14,16 @@ interface Toast {
   type: "success" | "error" | "warning"
 }
 
-export default function PrescriptionList() {
-  const [doctorId, setDoctorId] = useState<string | null>(null)
-  const [prescriptions, setPrescriptions] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+export default function AppointmentForm() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const [medecinId, setMedecinId] = useState<number | null>(null)
+  const patientId = Number(searchParams?.get("patient"))
+
+  const [selectedDate, setSelectedDate] = useState<string>("")
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const showToast = (message: string, type: "success" | "error" | "warning") => {
     const id = Date.now().toString()
@@ -31,194 +37,148 @@ export default function PrescriptionList() {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
   }
 
-  // Fetch doctorId from localStorage
   useEffect(() => {
-    const storedDoctorData = localStorage.getItem("user")
-
-    if (storedDoctorData) {
-      const parsedData = JSON.parse(storedDoctorData)
-      if (parsedData.medecin_id) {
-        setDoctorId(parsedData.medecin_id)
+    const storedMedecinData = localStorage.getItem("medecinData")
+    if (storedMedecinData) {
+      try {
+        const parsed = JSON.parse(storedMedecinData)
+        setMedecinId(parsed.medecin_id)
+      } catch (error) {
+        console.error("Error parsing medecin data:", error)
       }
     }
   }, [])
 
-  // Fetch prescriptions for this doctor
   useEffect(() => {
-    if (!doctorId) return
+    if (isRedirecting) {
+      const redirectTimer = setTimeout(() => {
+        router.push("/patient/appointmentlist")
+      }, 1500)
+      return () => clearTimeout(redirectTimer)
+    }
+  }, [isRedirecting, router])
 
-    const fetchPrescriptions = async () => {
-      try {
-        setLoading(true)
-        const response = await axios.get(`http://localhost:8000/prescriptions/doctor/${doctorId}`)
-        setPrescriptions(response.data)
-        setError(null)
-      } catch (error) {
-        console.error("Error fetching prescriptions:", error)
-        setError("Failed to load prescriptions. Please try again.")
-        showToast("Failed to load prescriptions. Please try again.", "error")
-      } finally {
-        setLoading(false)
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!patientId) {
+      showToast("Patient ID is missing from the URL.", "error")
+      return
     }
 
-    fetchPrescriptions()
-  }, [doctorId])
-
-  const toggleExpand = (id: string) => {
-    if (expandedId === id) {
-      setExpandedId(null)
-    } else {
-      setExpandedId(id)
+    if (!medecinId) {
+      showToast("Doctor ID not found. Please log in again.", "error")
+      return
     }
-  }
 
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }
-    return new Date(dateString).toLocaleDateString(undefined, options)
-  }
+    if (!selectedDate) {
+      showToast("Please select a date for your appointment.", "warning")
+      return
+    }
 
-  const handleDownload = async (id: string) => {
+    const selectedDateTime = new Date(selectedDate)
+    const now = new Date()
+
+    if (selectedDateTime < now) {
+      showToast("Please select a future date. Past dates are not allowed.", "warning")
+      return
+    }
+
+    const hours = selectedDateTime.getHours()
+    if (hours < 8 || hours >= 17) {
+      showToast("Please select a time between 8:00 AM and 5:00 PM (business hours).", "warning")
+      return
+    }
+
+    const formattedDate = selectedDateTime.toISOString().split(".")[0]
+
+    const appointmentData = {
+      medecin_id: medecinId,
+      date: formattedDate,
+    }
+
     try {
-      showToast("Downloading prescription...", "success")
-      window.open(`http://localhost:8000/prescriptions/download/${id}`, "_blank")
+      const response = await fetch(`http://localhost:8000/appointments/addappointment/patient/${patientId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(appointmentData),
+      }
+     
+   )
+
+      const responseData = await response.json().catch(() => null)
+      if (!response.ok) {
+        console.log("Backend error response:", responseData)
+        throw new Error(responseData?.message || "Failed to schedule appointment.")
+      }
+
+      showToast("Appointment scheduled successfully! Redirecting...", "success")
+      setSelectedDate("")
+      setIsRedirecting(true)
     } catch (error) {
-      console.error("Error downloading prescription:", error)
-      showToast("Failed to download prescription. Please try again.", "error")
+      console.error("Error submitting appointment:", error)
+      showToast("An error occurred. Please try again.", "error")
     }
   }
 
-  if (loading) {
-    return (
-      <div className="w-full max-w-6xl mx-auto p-8 flex justify-center">
-        <div className="animate-pulse flex space-x-4">
-          <div className="flex-1 space-y-6 py-1">
-            <div className="h-2 bg-slate-200 rounded"></div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="h-2 bg-slate-200 rounded col-span-2"></div>
-                <div className="h-2 bg-slate-200 rounded col-span-1"></div>
-              </div>
-              <div className="h-2 bg-slate-200 rounded"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  const getCurrentDateTime = () => {
+    const now = new Date()
+    return now.toISOString().slice(0, 16)
   }
 
   return (
     <main className="w-full bg-gray-100 min-h-screen">
-      <div className="p-4 md:p-6 lg:p-8">
-        <div className="relative w-full max-w-6xl mx-auto rounded-lg bg-white shadow-xl overflow-hidden">
+      <Header />
+      <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4 md:p-6 lg:p-8">
+        <div className="relative w-full max-w-6xl rounded-lg bg-white shadow-xl">
           <div className="absolute -right-2 -top-2 z-10 rotate-12 transform bg-[#2DD4BF] px-12 py-2 text-white shadow-md">
-            <span className="text-lg font-semibold">Prescriptions</span>
+            <span className="text-lg font-semibold">Appointment</span>
           </div>
 
-          {/* Header */}
-          <div className="bg-[#2DD4BF] p-6 flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Prescriptions</h1>
-              <p className="text-white opacity-80">Manage your patient prescriptions</p>
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="relative w-full h-full overflow-hidden rounded-l-lg">
+              <Image
+                src="/images/cap1.png"
+                alt="Medical appointment illustration"
+                fill
+                style={{ objectFit: "cover" }}
+                priority
+              />
             </div>
-            <Link
-              href="/prescriptions/new"
-              className="bg-white text-[#2DD4BF] px-4 py-2 rounded-md font-medium hover:bg-opacity-90 transition-all flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              New Prescription
-            </Link>
-          </div>
 
-          {/* Prescription List */}
-          <div className="p-6">
-            {prescriptions.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-16 w-16 mx-auto text-gray-400" />
-                <h3 className="mt-4 text-xl font-medium text-gray-900">No prescriptions yet</h3>
-                <p className="mt-2 text-base text-gray-500">Get started by creating a new prescription.</p>
-                <div className="mt-8">
-                  <Link
-                    href="/prescriptions/new"
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-[#2DD4BF] hover:bg-[#2DD4BF]/90"
-                  >
-                    <Plus className="h-5 w-5 mr-2" />
-                    Create Prescription
-                  </Link>
+            <div className="p-8 md:p-12">
+              <h1 className="mb-8 text-3xl font-bold text-gray-900">Prendre un rendez-vous</h1>
+
+              <form className="space-y-6" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                  <label htmlFor="datetime" className="block text-sm font-medium text-gray-700">
+                    Entrer l horaire souhaité
+                  </label>
+                  <input
+                    id="datetime"
+                    type="datetime-local"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    min={getCurrentDateTime()}
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-[#2DD4BF] focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/20"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Heures d ouverture: 8:00 - 17:00, dates futures uniquement
+                  </p>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {prescriptions.map((prescription) => (
-                  <div key={prescription.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div
-                      className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
-                      onClick={() => toggleExpand(prescription.id)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-5 w-5 text-[#2DD4BF]" />
-                        <div>
-                          <h3 className="font-medium text-gray-900">
-                            {prescription.patient.prenom} {prescription.patient.nom}
-                          </h3>
-                          <p className="text-sm text-gray-500">{formatDate(prescription.date)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center">
-                        <button className="text-gray-500 hover:text-gray-700">
-                          {expandedId === prescription.id ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
 
-                    {expandedId === prescription.id && (
-                      <div className="p-4 border-t border-gray-200 bg-gray-50">
-                        <div className="space-y-4">
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-500">Prescription Content</h4>
-                            <p className="mt-1">{prescription.content}</p>
-                          </div>
-
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-500">Medication</h4>
-                            <div className="mt-2 bg-white p-3 rounded border border-gray-200">
-                              <div className="grid grid-cols-3 gap-2">
-                                <div>
-                                  <span className="text-xs text-gray-500">Name</span>
-                                  <p className="font-medium">{prescription.medicament?.name || "Not specified"}</p>
-                                </div>
-                                <div>
-                                  <span className="text-xs text-gray-500">Dosage</span>
-                                  <p>{prescription.dosage || "Not specified"}</p>
-                                </div>
-                                <div>
-                                  <span className="text-xs text-gray-500">Duration</span>
-                                  <p>{prescription.duration || "Not specified"}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end pt-2">
-                            <button
-                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#2DD4BF] hover:bg-[#2DD4BF]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2DD4BF]"
-                              onClick={() => handleDownload(prescription.id)}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download PDF
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-[#2DD4BF] px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-[#2DD4BF]/90 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/20 active:bg-[#2DD4BF]/80"
+                  disabled={isRedirecting}
+                >
+                  {isRedirecting ? "Redirection en cours..." : "Soumettre"}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
@@ -232,8 +192,8 @@ export default function PrescriptionList() {
               toast.type === "success"
                 ? "bg-green-50 text-green-800 border-l-4 border-green-500"
                 : toast.type === "error"
-                  ? "bg-red-50 text-red-800 border-l-4 border-red-500"
-                  : "bg-amber-50 text-amber-800 border-l-4 border-amber-500"
+                ? "bg-red-50 text-red-800 border-l-4 border-red-500"
+                : "bg-amber-50 text-amber-800 border-l-4 border-amber-500"
             }`}
             style={{ minWidth: "320px", maxWidth: "420px" }}
           >
@@ -253,6 +213,8 @@ export default function PrescriptionList() {
           </div>
         ))}
       </div>
+
+      <Footer />
     </main>
   )
 }

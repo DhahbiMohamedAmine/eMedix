@@ -233,7 +233,7 @@ export default function ProfilePage() {
 
               {/* Right side - Form */}
               <div className="p-8 md:p-12">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">User Profile</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-8">Patient Profile</h1>
                 <form className="space-y-6" onSubmit={handleSubmit}>
                   {/* Name fields side by side */}
                   <div className="grid grid-cols-2 gap-4">

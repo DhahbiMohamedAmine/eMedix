@@ -1,0 +1,71 @@
+{
+  "dashboard": {
+    "title": "Medical Dashboard",
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "patients": "Patients",
+    "doctors": "Doctors",
+    "confirmations": "Confirmations",
+    "logout": "Logout",
+    "searchHere": "Search here",
+    "patientList": "Patient List",
+    "searchPatients": "Search patients...",
+    "doctorsList": "Doctors List",
+    "searchDoctors": "Search doctors...",
+    "appointmentsPerDay": "Appointments Per Day",
+    "appointmentsPerDoctor": "Appointments Per Doctor",
+    "lastMonthDistribution": "Last month distribution",
+    "basedOnActualData": "Based on actual system data",
+    "updatedToday": "Updated today",
+    "photo": "Photo",
+    "name": "Name",
+    "age": "Age",
+    "email": "Email",
+    "phone": "Phone",
+    "city": "City",
+    "address": "Address",
+    "grade": "Grade",
+    "diploma": "Diploma",
+    "years": "years",
+    "showing": "Showing",
+    "to": "to",
+    "of": "of",
+    "page": "Page",
+    "adminDashboard": "Admin Dashboard ",
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "toggleTheme": "Toggle theme"
+    },
+    "projects": {
+      "title": "Projects",
+      "done": "done",
+      "thisMonth": "this month"
+    },
+    "orders": {
+      "title": "Orders overview",
+      "thisMonth": "this month"
+    },
+    "stats": {
+      "totalAppointments": "Total Appointments",
+      "totalPatients": "Total Patients",
+      "activeDoctors": "Active Doctors",
+      "avgWaitTime": "Avg. Wait Time",
+      "thanLastMonth": "than last month",
+      "newThisMonth": "new this month",
+      "min": "min",
+      "errorLoadingData": "Error loading data"
+    },
+    "yearlyAppointments": {
+      "title": "Appointments Per Doctor (Yearly)",
+      "subtitle": "Annual appointment distribution by doctor",
+      "export": "Export",
+      "noData": "No data available for"
+    },
+    "patientsByAge": {
+      "title": "Patients By Age",
+      "subtitle": "Age distribution of patients"
+    }
+  }
+}

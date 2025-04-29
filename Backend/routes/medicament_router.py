@@ -1,3 +1,4 @@
+
 # routers/medicament_router.py
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,19 +35,25 @@ async def get_medicament(medicament_id: int, db: AsyncSession = Depends(get_db))
     return medicament
 
 @router.put("/{medicament_id}", response_model=MedicamentResponse)
-async def update_medicament(medicament_id: int, medicament_data: MedicamentUpdate, db: AsyncSession = Depends(get_db)):
+async def update_medicament_price(
+    medicament_id: int,
+    medicament_data: MedicamentUpdate,
+    db: AsyncSession = Depends(get_db)
+):
     result = await db.execute(select(Medicament).where(Medicament.id == medicament_id))
     medicament = result.scalar_one_or_none()
     if not medicament:
         raise HTTPException(status_code=404, detail="Medicament not found")
 
-    for key, value in medicament_data.dict(exclude_unset=True).items():
-        setattr(medicament, key, value)
+    medicament.price = medicament_data.price
+    medicament.dosage = medicament_data.dosage
+    medicament.duration = medicament_data.duration
 
     db.add(medicament)
     await db.commit()
     await db.refresh(medicament)
     return medicament
+
 
 @router.delete("/{medicament_id}")
 async def delete_medicament(medicament_id: int, db: AsyncSession = Depends(get_db)):

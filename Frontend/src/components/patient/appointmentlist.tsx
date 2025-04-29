@@ -9,6 +9,8 @@ import VerificationPopup from "./appointmentcancel"
 import EditAppointmentForm from "./appointmentedit"
 import { AppointmentNotification } from "@/components/appointment-notification"
 import { Trash2 } from "lucide-react"
+import PrescriptionDetails from "./prescription-details"
+import { FileText } from "lucide-react"
 
 interface Appointment {
   id: number
@@ -49,6 +51,9 @@ export default function AppointmentList() {
   const [doctors, setDoctors] = useState<Record<number, Doctor>>({})
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isPrescriptionDetailsOpen, setIsPrescriptionDetailsOpen] = useState(false)
+  const [appointmentForPrescriptionDetails, setAppointmentForPrescriptionDetails] = useState<number | null>(null)
+  const [appointmentsWithPrescriptions, setAppointmentsWithPrescriptions] = useState<number[]>([])
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const initialLoadDone = useRef(false)
   const lastAppointmentStatusesRef = useRef<Record<number, string>>({})
@@ -525,6 +530,71 @@ export default function AppointmentList() {
     window.dispatchEvent(new Event("appointmentNotificationsUpdated"))
   }
 
+  const handleViewPrescriptionDetails = (appointmentId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    console.log("Opening prescription details for appointment:", appointmentId)
+
+    // Try to fetch the prescription
+    fetch(`http://localhost:8000/prescriptions/${appointmentId}`)
+      .then((response) => {
+        if (response.ok) {
+          return response.json()
+        }
+        throw new Error("No prescription found")
+      })
+      .then((data) => {
+        if (data && data.id) {
+          // We found a prescription
+          setAppointmentsWithPrescriptions((prev) => (prev.includes(appointmentId) ? prev : [...prev, appointmentId]))
+          setAppointmentForPrescriptionDetails(appointmentId)
+          setIsPrescriptionDetailsOpen(true)
+        } else {
+          alert("No prescription found for this appointment.")
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching prescription:", error)
+        alert("No prescription found for this appointment.")
+      })
+  }
+
+  useEffect(() => {
+    // Check which finished appointments have prescriptions
+    const checkPrescriptionsForAppointments = async () => {
+      try {
+        const finishedAppointments = appointments.filter((a) => a.status === "finished")
+        const prescriptionsIds: number[] = []
+
+        for (const appointment of finishedAppointments) {
+          try {
+            const response = await fetch(`http://localhost:8000/prescriptions/${appointment.id}`)
+            if (response.ok) {
+              const data = await response.json()
+              if (data && data.id) {
+                prescriptionsIds.push(appointment.id)
+              }
+            }
+          } catch (error) {
+            // Ignore errors for individual prescriptions
+            console.log(`No prescription found for appointment ${appointment.id}`)
+          }
+        }
+
+        setAppointmentsWithPrescriptions(prescriptionsIds)
+      } catch (error) {
+        console.error("Error checking prescriptions:", error)
+      }
+    }
+
+    if (appointments.length > 0) {
+      checkPrescriptionsForAppointments()
+    }
+  }, [appointments])
+
+  const hasPrescription = (appointmentId: number): boolean => {
+    return appointmentsWithPrescriptions.includes(appointmentId)
+  }
+
   // Filter active notifications (not dismissed)
   const activeNotifications = notifications
     .filter((n) => !n.dismissed)
@@ -753,6 +823,15 @@ export default function AppointmentList() {
                                         Accept
                                       </button>
                                     )}
+                                    {appointment.status === "finished" && hasPrescription(appointment.id) && (
+                                      <button
+                                        onClick={(e) => handleViewPrescriptionDetails(appointment.id, e)}
+                                        className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                                      >
+                                        <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                        View Prescription
+                                      </button>
+                                    )}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
@@ -820,8 +899,17 @@ export default function AppointmentList() {
         onSave={saveAppointment}
         onCancel={cancelEdit}
       />
+      {/* Prescription Details */}
+      {isPrescriptionDetailsOpen && appointmentForPrescriptionDetails && (
+        <PrescriptionDetails
+          appointmentId={appointmentForPrescriptionDetails}
+          onClose={() => {
+            setIsPrescriptionDetailsOpen(false)
+            setAppointmentForPrescriptionDetails(null)
+          }}
+        />
+      )}
       <Footer />
     </main>
   )
 }
-

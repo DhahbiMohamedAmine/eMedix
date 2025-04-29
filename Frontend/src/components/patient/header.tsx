@@ -305,11 +305,14 @@ export default function HeaderComponent() {
           <Link href="/home" className="text-white hover:text-blue-200">
             Home
           </Link>
-          <Link href="/medicament" className="text-white hover:text-blue-200">
+          <Link href="/patient/medicaments" className="text-white hover:text-blue-200">
             Medicaments
           </Link>
-          <Link href="/doctorlist" className="text-white hover:text-blue-200">
+          <Link href="/patient/doctorlist" className="text-white hover:text-blue-200">
             All doctors
+          </Link>
+          <Link href="/patient/cart" className="text-white hover:text-blue-200">
+            Cart
           </Link>
         </div>
 

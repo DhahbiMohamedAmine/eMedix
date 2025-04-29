@@ -1,0 +1,71 @@
+{
+  "dashboard": {
+    "title": "Tableau de Bord Médical",
+    "home": "Accueil",
+    "dashboard": "Tableau de Bord",
+    "patients": "Patients",
+    "doctors": "Médecins",
+    "confirmations": "Confirmations",
+    "logout": "Déconnexion",
+    "searchHere": "Rechercher ici",
+    "patientList": "Liste des Patients",
+    "searchPatients": "Rechercher des patients...",
+    "doctorsList": "Liste des Médecins",
+    "searchDoctors": "Rechercher des médecins...",
+    "appointmentsPerDay": "Rendez-vous par Jour",
+    "appointmentsPerDoctor": "Rendez-vous par Médecin",
+    "lastMonthDistribution": "Distribution du mois dernier",
+    "basedOnActualData": "Basé sur les données réelles du système",
+    "updatedToday": "Mis à jour aujourd'hui",
+    "photo": "Photo",
+    "name": "Nom",
+    "age": "Âge",
+    "email": "Email",
+    "phone": "Téléphone",
+    "city": "Ville",
+    "address": "Adresse",
+    "grade": "Grade",
+    "diploma": "Diplôme",
+    "years": "ans",
+    "showing": "Affichage de",
+    "to": "à",
+    "of": "sur",
+    "page": "Page",
+    "adminDashboard": "Dashboard d'Administrateur",
+    "theme": {
+      "light": "Clair",
+      "dark": "Sombre",
+      "system": "Système",
+      "toggleTheme": "Changer de thème"
+    },
+    "projects": {
+      "title": "Projets",
+      "done": "terminés",
+      "thisMonth": "ce mois-ci"
+    },
+    "orders": {
+      "title": "Aperçu des commandes",
+      "thisMonth": "ce mois-ci"
+    },
+    "stats": {
+      "totalAppointments": "Total des Rendez-vous",
+      "totalPatients": "Total des Patients",
+      "activeDoctors": "Médecins Actifs",
+      "avgWaitTime": "Temps d'Attente Moyen",
+      "thanLastMonth": "par rapport au mois dernier",
+      "newThisMonth": "nouveaux ce mois-ci",
+      "min": "min",
+      "errorLoadingData": "Erreur de chargement des données"
+    },
+    "yearlyAppointments": {
+      "title": "Rendez-vous Par Médecin (Annuel)",
+      "subtitle": "Distribution annuelle des rendez-vous par médecin",
+      "export": "Exporter",
+      "noData": "Pas de données disponibles pour"
+    },
+    "patientsByAge": {
+      "title": "Patients Par Âge",
+      "subtitle": "Distribution des patients par âge"
+    }
+  }
+}

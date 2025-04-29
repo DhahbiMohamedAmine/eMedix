@@ -60,7 +60,7 @@ async def register(
     adresse: Optional[str] = Form(None),
     diplome: Optional[str] = Form(None),
     grade: Optional[str] = Form(None),
-    annee_experience: Optional[int] = Form(None),
+    ville: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db)
 ):
     # Handle file upload if photo is provided
@@ -125,14 +125,14 @@ async def register(
             await db.rollback()
             raise HTTPException(status_code=500, detail=f"Failed to add patient details: {str(e)}")
     elif role == 'medecin':
-        if not (adresse and diplome and grade and annee_experience):
+        if not (adresse and diplome and grade and ville):
             raise HTTPException(status_code=400, detail="All medical details are required for medecin")
         medecin = Medecin(
             user_id=db_user.id,
             adresse=adresse,
             diplome=diplome,
             grade=grade,
-            annee_experience=annee_experience
+            ville=ville
         )
         try:
             db.add(medecin)
@@ -275,7 +275,7 @@ async def login(user: LoginRequest, db: AsyncSession = Depends(get_db)):
                 "adresse": db_user.medecin.adresse,
                 "diplome": db_user.medecin.diplome,
                 "grade": db_user.medecin.grade,
-                "annee_experience": db_user.medecin.annee_experience
+                "ville": db_user.medecin.ville
             })
 
         elif db_user.role == "admin" and db_user.admin:
@@ -433,4 +433,3 @@ async def google_auth(token: str = Body(...), db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=400, detail="Invalid token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

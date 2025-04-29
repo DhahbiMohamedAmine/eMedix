@@ -3,7 +3,8 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Header from "@/components/patient/header"
 import Footer from "@/components/footer"
-import { Calendar, Clock, MapPin } from "lucide-react"
+import { Calendar, Clock, MapPin, FileText } from "lucide-react"
+import PrescriptionDetails from "@/components/medecin/prescription-details" // Import the PrescriptionDetails component
 
 interface Appointment {
   id: number
@@ -25,6 +26,8 @@ export default function AppointmentHistory() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [doctors, setDoctors] = useState<Record<number, Doctor>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null)
+  const [showPrescription, setShowPrescription] = useState(false)
 
   // Fetch appointments and doctors data
   useEffect(() => {
@@ -134,6 +137,18 @@ export default function AppointmentHistory() {
     })
   }
 
+  // Handle view prescription click
+  const handleViewPrescription = (appointmentId: number) => {
+    setSelectedAppointmentId(appointmentId)
+    setShowPrescription(true)
+  }
+
+  // Handle close prescription modal
+  const handleClosePrescription = () => {
+    setShowPrescription(false)
+    setSelectedAppointmentId(null)
+  }
+
   // Filter past appointments
   const pastAppointments = appointments
     .filter((appointment) => {
@@ -151,6 +166,7 @@ export default function AppointmentHistory() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "confirmed":
+      case "finished":
         return {
           bgColor: "bg-green-100",
           textColor: "text-green-800",
@@ -238,6 +254,7 @@ export default function AppointmentHistory() {
                     const doctor = doctors[appointment.medecin_id]
                     const statusInfo = getStatusInfo(appointment.status)
                     const appointmentDate = new Date(appointment.date)
+                    const isCompleted = appointment.status === "confirmed" || appointment.status === "finished"
 
                     return (
                       <div
@@ -294,6 +311,19 @@ export default function AppointmentHistory() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Alternative View Prescription Button - Full width at bottom of card */}
+                        {isCompleted && (
+                          <div className="mt-4 pt-3 border-t border-gray-100">
+                            <button
+                              onClick={() => handleViewPrescription(appointment.id)}
+                              className="w-full flex items-center justify-center gap-2 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md transition-colors"
+                            >
+                              <FileText className="h-4 w-4" />
+                              View Prescription
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -304,8 +334,12 @@ export default function AppointmentHistory() {
         </div>
       </div>
 
+      {/* Prescription Details Modal */}
+      {showPrescription && selectedAppointmentId && (
+        <PrescriptionDetails appointmentId={selectedAppointmentId} onClose={handleClosePrescription} />
+      )}
+
       <Footer />
     </main>
   )
 }
-

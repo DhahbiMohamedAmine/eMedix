@@ -1,35 +1,20 @@
 from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
+from typing import List, Optional
 
-class PrescriptionRequest(BaseModel):
-    patient_id: int
-    medecin_id: int
-    medicament_id: int
-    date: datetime
-    content: Optional[str] = None
-    dosage: Optional[str] = None
-    duration: Optional[str] = None
+class PrescriptionBase(BaseModel):
+    content: str
+    medicament_ids: List[int]
 
-
+class PrescriptionCreate(PrescriptionBase):
+    pass
 
 class PrescriptionUpdate(BaseModel):
-    medicament_id: Optional[int] = None
     content: Optional[str] = None
-    date: Optional[datetime] = None
-    dosage: Optional[str] = None
-    duration: Optional[str] = None
+    medicament_ids: Optional[List[int]] = None
 
-class PrescriptionResponse(BaseModel):
+class PrescriptionOut(BaseModel):
     id: int
-    patient_id: int
-    medecin_id: int
-    medicament_id: int
-    date: datetime
-    content: Optional[str] = None
-    dosage: Optional[str] = None
-    duration: Optional[str] = None
-
-    
-
+    content: str
+    appointment_id: int
+    medicament_ids: List[int]
 

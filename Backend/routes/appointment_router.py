@@ -490,3 +490,29 @@ async def get_last_confirmed_past_appointment(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving appointment: {e}")
 
+@router.put("/finish/{appointment_id}", response_model=AppointmentResponse)
+async def finish_appointment(appointment_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # Query to get the appointment by id
+        appointment_query = select(AppointmentModel).filter(AppointmentModel.id == appointment_id)
+        appointment_result = await db.execute(appointment_query)
+        existing_appointment = appointment_result.scalar_one_or_none()
+
+        if not existing_appointment:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+
+        # Check if the status is 'confirmed', and update to 'finished'
+        if existing_appointment.status != "confirmed":
+            raise HTTPException(status_code=400, detail="Appointment is not in 'confirmed' status")
+
+        # Change the status to 'finished'
+        existing_appointment.status = "finished"
+
+        db.add(existing_appointment)
+        await db.commit()
+        await db.refresh(existing_appointment)
+
+        return existing_appointment
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating appointment status: {e}")
