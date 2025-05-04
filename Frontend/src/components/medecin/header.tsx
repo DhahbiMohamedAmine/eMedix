@@ -15,7 +15,7 @@ interface UserData {
 
 interface DoctorNotification {
   appointmentId: number
-  type: "confirmed" | "modified" | "cancelled"
+  type: "confirmed" | "modified" | "cancelled" | "new"
   read: boolean
   dismissed: boolean
   timestamp: number
@@ -69,13 +69,27 @@ export default function HeaderComponent() {
             app.status === "cancelled" ||
             app.status === "waiting for medecin confirmation"
           ) {
-            statusChanges.push({
-              id: app.id,
-              status: app.status,
-              type: app.status === "confirmed" ? "confirmed" : app.status === "cancelled" ? "cancelled" : "modified",
-              patient_id: app.patient_id,
-              date: app.date,
-            })
+            // Check if this action was performed by the doctor (don't notify them about their own actions)
+            const actionByDoctor = app.last_updated_by === "medecin"
+
+            // Only create notification if the action wasn't performed by the doctor
+            if (!actionByDoctor) {
+              let notificationType =
+                app.status === "confirmed" ? "confirmed" : app.status === "cancelled" ? "cancelled" : "modified"
+
+              // If status is "waiting for medecin confirmation", it's a new appointment
+              if (app.status === "waiting for medecin confirmation") {
+                notificationType = "new"
+              }
+
+              statusChanges.push({
+                id: app.id,
+                status: app.status,
+                type: notificationType,
+                patient_id: app.patient_id,
+                date: app.date,
+              })
+            }
           }
         } else if (lastStatuses[app.id] === undefined) {
           // First time seeing this appointment
@@ -92,11 +106,22 @@ export default function HeaderComponent() {
               (n: DoctorNotification) => n.appointmentId === app.id && !n.dismissed,
             )
 
-            if (!hasNotification) {
+            // Check if this action was performed by the doctor (don't notify them about their own actions)
+            const actionByDoctor = app.last_updated_by === "medecin"
+
+            if (!hasNotification && !actionByDoctor) {
+              let notificationType =
+                app.status === "confirmed" ? "confirmed" : app.status === "cancelled" ? "cancelled" : "modified"
+
+              // If status is "waiting for medecin confirmation", it's a new appointment
+              if (app.status === "waiting for medecin confirmation") {
+                notificationType = "new"
+              }
+
               statusChanges.push({
                 id: app.id,
                 status: app.status,
-                type: app.status === "confirmed" ? "confirmed" : app.status === "cancelled" ? "cancelled" : "modified",
+                type: notificationType,
                 patient_id: app.patient_id,
                 date: app.date,
               })
@@ -275,6 +300,7 @@ export default function HeaderComponent() {
     return userData.photo.startsWith("http") ? userData.photo : `http://localhost:8000${userData.photo}`
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCalendarClick = () => {
     // Don't automatically mark notifications as read when visiting calendar
     // Just close the dropdowns
@@ -407,13 +433,17 @@ export default function HeaderComponent() {
                               ? "bg-green-100"
                               : notification.type === "cancelled"
                                 ? "bg-red-100"
-                                : "bg-amber-100"
+                                : notification.type === "new"
+                                  ? "bg-blue-100"
+                                  : "bg-amber-100"
                           }`}
                         >
                           {notification.type === "confirmed" ? (
                             <CheckCircle className="h-5 w-5 text-green-500" />
                           ) : notification.type === "cancelled" ? (
                             <XCircle className="h-5 w-5 text-red-500" />
+                          ) : notification.type === "new" ? (
+                            <Calendar className="h-5 w-5 text-blue-500" />
                           ) : (
                             <Calendar className="h-5 w-5 text-amber-500" />
                           )}
@@ -425,7 +455,9 @@ export default function HeaderComponent() {
                                 ? "Appointment Confirmed"
                                 : notification.type === "cancelled"
                                   ? "Appointment Cancelled"
-                                  : "Appointment Modified"}
+                                  : notification.type === "new"
+                                    ? "New Appointment"
+                                    : "Appointment Modified"}
                             </p>
                             {!notification.read && (
                               <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-600"></span>
@@ -470,18 +502,7 @@ export default function HeaderComponent() {
                 </div>
               )}
 
-              <div className="p-3 border-t border-gray-200">
-                <Link
-                  href="/medecin/Calendar"
-                  className="block text-center text-sm text-blue-600 hover:text-blue-800"
-                  onClick={() => {
-                    handleCalendarClick()
-                    setShowNotifications(false)
-                  }}
-                >
-                  View all in calendar
-                </Link>
-              </div>
+              <div className="p-3 border-t border-gray-200"></div>
             </div>
           )}
         </div>

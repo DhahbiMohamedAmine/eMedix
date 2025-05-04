@@ -48,7 +48,6 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
 
           {/* Theme Toggle Switch */}
           <ThemeToggle />
-
           {/* Language Settings Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

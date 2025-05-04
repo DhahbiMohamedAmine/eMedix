@@ -1,9 +1,9 @@
 "use client"
 
-import { X, CheckCircle, Calendar, XCircle } from "lucide-react"
+import { X, CheckCircle, Calendar, XCircle, PlusCircle } from "lucide-react"
 
 interface DoctorAppointmentNotificationProps {
-  type: "confirmed" | "modified" | "cancelled"
+  type: "confirmed" | "modified" | "cancelled" | "new"
   appointmentDate: string
   patientName: string
   onDismiss: () => void
@@ -48,6 +48,15 @@ export function DoctorAppointmentNotification({
         borderColor: "border-l-4 border-amber-500",
         textColor: "text-amber-800",
       }
+    } else if (type === "new") {
+      return {
+        icon: <PlusCircle className="h-5 w-5 text-primary-500" />,
+        title: "New Appointment Request",
+        description: `${patientName} has requested a new appointment for ${formatDate(appointmentDate)}.`,
+        bgColor: "bg-primary-50",
+        borderColor: "border-l-4 border-primary-500",
+        textColor: "text-primary-800",
+      }
     } else {
       return {
         icon: <XCircle className="h-5 w-5 text-red-500" />,
@@ -81,4 +90,3 @@ export function DoctorAppointmentNotification({
     </div>
   )
 }
-

@@ -16,5 +16,3 @@ class BillingUpdate(BillingBase):
 class BillingOut(BillingBase):
     id: int
 
-    class Config:
-        orm_mode = True

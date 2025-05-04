@@ -23,7 +23,7 @@ app.include_router(medicament_router, prefix="/medicaments", tags=["medicaments"
 app.include_router(prescription_router, prefix="/prescriptions", tags=["prescriptions"])
 app.include_router(stats_router, prefix="/stats", tags=["stats"])
 
-app.include_router(billing_router, prefix="/billing", tags=["billing"])
+#app.include_router(billing_router, prefix="/billing", tags=["billing"])
 app.include_router(cart_router, prefix="/cart", tags=["Cart"])
 app.include_router(message_router, tags=["chat"])
 app.include_router(payment_router, tags=["payment"])

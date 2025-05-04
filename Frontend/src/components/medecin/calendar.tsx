@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import type React from "react"
@@ -43,7 +46,7 @@ export default function AppointmentCalendar() {
   // Add these interfaces after the existing interfaces
   interface DoctorNotification {
     appointmentId: number
-    type: "confirmed" | "modified" | "cancelled"
+    type: "confirmed" | "modified" | "cancelled" | "new"
     read: boolean
     dismissed: boolean
     timestamp: number
@@ -79,6 +82,7 @@ export default function AppointmentCalendar() {
   const [viewMode, setViewMode] = useState<"week" | "month">("week")
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [processedAppointments, setProcessedAppointments] = useState<Set<number>>(new Set())
 
   // Notifications state
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -105,6 +109,155 @@ export default function AppointmentCalendar() {
   // Function to dismiss a notification
   const dismissNotification = (id: string) => {
     setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+  }
+
+  // Function to create a notification for the patient
+  const createPatientNotification = (
+    appointmentId: number,
+    type: "confirmed" | "modified" | "cancelled" | "finished",
+  ) => {
+    try {
+      // Get the appointment details
+      const appointment = appointments.find((a) => a.id === appointmentId)
+      if (!appointment) return
+
+      // Get the patient ID
+      const patientId = appointment.patient_id
+
+      // Create a notification object
+      const notification = {
+        appointmentId,
+        type,
+        read: false,
+        dismissed: false,
+        timestamp: Date.now(),
+        patientId,
+        appointmentDate: appointment.date,
+      }
+
+      // Store the notification in localStorage
+      const storedNotifications = localStorage.getItem("patientAppointmentNotifications") || "[]"
+      const parsedNotifications = JSON.parse(storedNotifications)
+
+      // Add the new notification
+      parsedNotifications.push(notification)
+
+      // Save back to localStorage
+      localStorage.setItem("patientAppointmentNotifications", JSON.stringify(parsedNotifications))
+
+      // Dispatch an event to notify other components
+      window.dispatchEvent(new Event("patientAppointmentNotificationsUpdated"))
+
+      console.log(`Created ${type} notification for patient ${patientId} for appointment ${appointmentId}`)
+    } catch (error) {
+      console.error("Error creating patient notification:", error)
+    }
+  }
+
+  // Function to handle new appointment notifications for doctors
+  const handleNewAppointmentNotification = (appointmentId: number) => {
+    try {
+      // Get the appointment details
+      const appointment = appointments.find((a) => a.id === appointmentId)
+      if (!appointment) return
+
+      // Check if we've already processed this appointment
+      if (processedAppointments.has(appointmentId)) {
+        return
+      }
+
+      // Create a notification object for the doctor
+      const notification = {
+        appointmentId,
+        type: "new",
+        read: false,
+        dismissed: false,
+        timestamp: Date.now(),
+        patientId: appointment.patient_id,
+        appointmentDate: appointment.date,
+      }
+
+      // Store the notification in localStorage
+      const storedNotifications = localStorage.getItem("doctorAppointmentNotifications") || "[]"
+      const parsedNotifications = JSON.parse(storedNotifications)
+
+      // Check if a notification for this appointment already exists
+      const existingNotificationIndex = parsedNotifications.findIndex(
+        (n: any) => n.appointmentId === appointmentId && n.type === "new",
+      )
+
+      // Only add if it doesn't exist
+      if (existingNotificationIndex === -1) {
+        // Add the new notification
+        parsedNotifications.push(notification)
+
+        // Save back to localStorage
+        localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(parsedNotifications))
+
+        // Dispatch an event to notify other components
+        window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+
+        console.log(`Created new appointment notification for doctor for appointment ${appointmentId}`)
+      }
+
+      // Mark this appointment as processed
+      setProcessedAppointments((prev) => new Set([...prev, appointmentId]))
+    } catch (error) {
+      console.error("Error creating new appointment notification:", error)
+    }
+  }
+
+  // Function to handle cancelled appointment notifications for doctors
+  const handleCancelledAppointmentNotification = (appointmentId: number) => {
+    try {
+      // Get the appointment details
+      const appointment = appointments.find((a) => a.id === appointmentId)
+      if (!appointment) return
+
+      // Check if we've already processed this appointment
+      if (processedAppointments.has(appointmentId)) {
+        return
+      }
+
+      // Create a notification object for the doctor
+      const notification = {
+        appointmentId,
+        type: "cancelled",
+        read: false,
+        dismissed: false,
+        timestamp: Date.now(),
+        patientId: appointment.patient_id,
+        appointmentDate: appointment.date,
+      }
+
+      // Store the notification in localStorage
+      const storedNotifications = localStorage.getItem("doctorAppointmentNotifications") || "[]"
+      const parsedNotifications = JSON.parse(storedNotifications)
+
+      // Check if a notification for this appointment already exists
+      const existingNotificationIndex = parsedNotifications.findIndex(
+        (n: any) => n.appointmentId === appointmentId && n.type === "cancelled",
+      )
+
+      // Only add if it doesn't exist
+      if (existingNotificationIndex === -1) {
+        // Add the new notification
+        parsedNotifications.push(notification)
+
+        // Save back to localStorage
+        localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(parsedNotifications))
+
+        // Dispatch an event to notify other components
+        window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+
+        console.log(`Created cancelled appointment notification for doctor for appointment ${appointmentId}`)
+      }
+
+      // Mark this appointment as processed
+      setProcessedAppointments((prev) => new Set([...prev, appointmentId]))
+    } catch (error) {
+      console.error("Error creating cancelled appointment notification:", error)
+    }
   }
 
   // Fetch medecinId from localStorage
@@ -138,7 +291,6 @@ export default function AppointmentCalendar() {
             console.log(`Found prescription for appointment ${appointment.id}:`, response.data.id)
             appointmentsWithPrescriptionsIds.push(appointment.id)
           }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (error) {
           // If there's an error or no prescription found, just continue
           console.log(`No prescription found for appointment ${appointment.id}`)
@@ -229,7 +381,6 @@ export default function AppointmentCalendar() {
   }
 
   // Add this function after the loadNotifications function
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const dismissDoctorNotification = (appointmentId: number) => {
     try {
       // Get all notifications from localStorage
@@ -294,7 +445,7 @@ export default function AppointmentCalendar() {
       window.removeEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
       clearInterval(interval)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [])
 
   // Add this useEffect to get the highlighted appointment ID from URL or localStorage
@@ -365,15 +516,15 @@ export default function AppointmentCalendar() {
         prevAppointments.map((a) => (a.id === appointmentId ? { ...a, status: "confirmed" } : a)),
       )
 
-      // Show success notification instead of alert
-      showNotification("Appointment confirmed successfully!", "success")
-
-      // Find the patient name for the notification
+      // Find the patient name for the local notification
       const appointment = appointments.find((a) => a.id === appointmentId)
       if (appointment && patients[appointment.patient_id]) {
         const patient = patients[appointment.patient_id]
         const patientName = `${patient.prenom} ${patient.nom}`
         showNotification(`Appointment with ${patientName} has been confirmed`, "success")
+
+        // Create a notification for the patient only
+        createPatientNotification(appointmentId, "confirmed")
       }
     } catch (error) {
       console.error("Failed to confirm appointment:" + error)
@@ -398,13 +549,16 @@ export default function AppointmentCalendar() {
       // Find the appointment to open prescription form
       const appointment = appointments.find((a) => a.id === appointmentId)
       if (appointment) {
-        // Show success notification
+        // Show success notification to the doctor only (not stored as a notification)
         const patientInfo = patients[appointment.patient_id]
         const patientName = patientInfo
           ? `${patientInfo.prenom} ${patientInfo.nom}`
           : `Patient #${appointment.patient_id}`
 
         showNotification(`Appointment with ${patientName} marked as finished!`, "success")
+
+        // Create a notification for the patient only
+        createPatientNotification(appointmentId, "finished")
 
         setAppointmentForPrescription(appointment)
         setIsPrescriptionFormOpen(true)
@@ -488,8 +642,11 @@ export default function AppointmentCalendar() {
       setIsEditFormOpen(false)
       setAppointmentToEdit(null)
 
-      // Show success notification
+      // Show success notification to the doctor only (not stored as a notification)
       showNotification("Appointment updated successfully!", "success")
+
+      // Create a notification for the patient only
+      createPatientNotification(updatedAppointment.id, "modified")
     } catch (error) {
       console.error("Error updating appointment:", error)
       showNotification(
@@ -535,6 +692,8 @@ export default function AppointmentCalendar() {
         }
 
         // Make POST request to the backend endpoint
+
+
         const response = await fetch("http://localhost:8000/appointments/bydate", {
           method: "POST",
           headers: {
@@ -778,6 +937,36 @@ export default function AppointmentCalendar() {
         return "bg-gray-500 hover:bg-gray-600"
     }
   }
+
+  // Function to check for new appointments
+  const checkForNewAppointments = useCallback(() => {
+    // This would typically be an API call to check for new appointments
+    // For now, we'll just check if there are any appointments with status "waiting for medecin confirmation"
+    const newAppointments = appointments.filter((a) => a.status === "waiting for medecin confirmation")
+
+    // For each new appointment, create a notification for the doctor
+    newAppointments.forEach((appointment) => {
+      handleNewAppointmentNotification(appointment.id)
+    })
+  }, [appointments])
+
+  // Function to check for cancelled appointments
+  const checkForCancelledAppointments = useCallback(() => {
+    // This would typically be an API call to check for cancelled appointments
+    // For now, we'll just check if there are any appointments with status "cancelled"
+    const cancelledAppointments = appointments.filter((a) => a.status === "cancelled")
+
+    // For each cancelled appointment, create a notification for the doctor
+    cancelledAppointments.forEach((appointment) => {
+      handleCancelledAppointmentNotification(appointment.id)
+    })
+  }, [appointments])
+
+  // Use useEffect to check for new and cancelled appointments whenever the appointments state changes
+  useEffect(() => {
+    checkForNewAppointments()
+    checkForCancelledAppointments()
+  }, [appointments, checkForNewAppointments, checkForCancelledAppointments])
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-primary-50 to-neutral-100">
@@ -1066,6 +1255,17 @@ export default function AppointmentCalendar() {
                                             <User className="w-3.5 h-3.5 mr-1" />
                                             Details
                                           </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                          >
+                                            Add Note
+                                          </Button>
                                         </>
                                       ) : appointment.status === "waiting for patient confirmation" ? (
                                         <>
@@ -1085,6 +1285,17 @@ export default function AppointmentCalendar() {
                                           >
                                             <User className="w-3.5 h-3.5 mr-1" />
                                             Details
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                          >
+                                            Add Note
                                           </Button>
                                         </>
                                       ) : appointment.status === "confirmed" ? (
@@ -1108,6 +1319,17 @@ export default function AppointmentCalendar() {
                                           </Button>
                                           <Button
                                             size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                          >
+                                            Add Note
+                                          </Button>
+                                          <Button
+                                            size="sm"
                                             onClick={(event) => handleFinishAppointment(appointment.id, event)}
                                             className="bg-primary-500 hover:bg-primary-600 text-white"
                                           >
@@ -1125,6 +1347,17 @@ export default function AppointmentCalendar() {
                                           >
                                             <User className="w-3.5 h-3.5 mr-1" />
                                             Details
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                          >
+                                            Add Note
                                           </Button>
                                           {appointmentHasPrescription ? (
                                             <Button
@@ -1160,6 +1393,17 @@ export default function AppointmentCalendar() {
                                           >
                                             <User className="w-3.5 h-3.5 mr-1" />
                                             Details
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleOpenNotePopup(appointment)
+                                            }}
+                                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                          >
+                                            Add Note
                                           </Button>
                                         </>
                                       )}

@@ -81,3 +81,38 @@ async def update_cart_quantity(item: CartItem):
             entry["quantity"] = item.quantity
             return {"message": "Quantity updated"}
     raise HTTPException(status_code=404, detail="Medicament not found in cart")
+
+@router.post("/addMany", response_model=dict)
+async def add_multiple_to_cart(
+    items: List[CartItem], db: AsyncSession = Depends(get_db)
+):
+    added = 0
+    updated = 0
+
+    for item in items:
+        result = await db.execute(select(Medicament).where(Medicament.id == item.medicament_id))
+        medicament = result.scalar_one_or_none()
+        if not medicament:
+            continue  # Skip invalid medicament IDs
+
+        for entry in cart:
+            if entry["medicament"]["id"] == medicament.id:
+                entry["quantity"] += item.quantity
+                updated += 1
+                break
+        else:
+            cart.append({
+                "medicament": {
+                    "id": medicament.id,
+                    "name": medicament.name,
+                    "description": medicament.description,
+                    "dosage": medicament.dosage,
+                    "price": medicament.price,
+                },
+                "quantity": item.quantity
+            })
+            added += 1
+
+    return {
+        "message": f"{added} medicaments added, {updated} quantities updated"
+    }

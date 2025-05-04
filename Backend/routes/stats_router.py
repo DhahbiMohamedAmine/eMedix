@@ -110,8 +110,7 @@ class AgeCategoryCount(BaseModel):
     category: str
     count: int
 
-    class Config:
-        orm_mode = True
+
 
 def _years_ago(years: int) -> date:
     today = date.today()
@@ -229,8 +228,7 @@ class AppointmentCountByWeekDay(BaseModel):
     day: str
     count: int
 
-    class Config:
-        orm_mode = True
+
 
 DAY_NAMES = {
     0: "Sunday",
@@ -248,8 +246,6 @@ class AppointmentCountByWeekDay(BaseModel):
     day: str
     count: int
 
-    class Config:
-        orm_mode = True
 
 async def count_appointments_per_weekday(db: AsyncSession) -> List[AppointmentCountByWeekDay]:
     """

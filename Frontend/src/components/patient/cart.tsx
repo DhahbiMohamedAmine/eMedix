@@ -1,9 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation" // ✅ Import useRouter
+import { useRouter } from "next/navigation"
 import Header from "@/components/patient/header"
 import Footer from "@/components/footer"
+import { ShoppingCart, Minus, Plus, ArrowLeft, ShoppingBag, Trash2, AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type CartItem = {
   medicament_id: number
@@ -17,7 +22,7 @@ type CartItem = {
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
-  const router = useRouter() // ✅ Initialize useRouter
+  const router = useRouter()
 
   const fetchCart = async () => {
     try {
@@ -97,77 +102,150 @@ export default function CartPage() {
 
   const formatPrice = (price?: number) => {
     if (price === undefined || price === null) return "N/A"
-    return `$${price.toFixed(2)}`
+    return `${price.toFixed(2)} DT`
   }
 
   return (
-    <main className="w-full bg-gray-100 min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-neutral-100">
       <Header />
-      <div className="flex min-h-[calc(100vh-120px)] items-center justify-center bg-gray-100 p-2 md:p-3 lg:p-4">
-        <div className="relative w-full max-w-[95%] rounded-lg bg-white shadow-xl flex flex-col">
-          <div className="absolute -right-2 -top-2 z-10 rotate-12 transform bg-[#2DD4BF] px-12 py-2 text-white shadow-md">
-            <span className="text-lg font-semibold">Your Cart</span>
+
+      {/* Hero Section with Gradient Background */}
+      <div className="relative bg-gradient-to-r from-primary-600 via-primary-500 to-primary-600 py-16 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white"></div>
+          <div className="absolute top-32 right-12 w-64 h-64 rounded-full bg-white"></div>
+          <div className="absolute bottom-12 left-1/3 w-48 h-48 rounded-full bg-white"></div>
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Your Shopping Cart</h1>
+            <p className="text-primary-100 max-w-2xl mx-auto text-lg">
+              Review your selected medications and proceed to checkout
+            </p>
           </div>
+        </div>
+      </div>
 
-          <div className="flex flex-col h-full">
-            <div className="w-full p-4 md:p-6 flex flex-col">
-              <h1 className="mb-4 text-3xl font-bold text-gray-900">🛒 Your Cart</h1>
-
-              {loading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2DD4BF]"></div>
-                </div>
-              ) : (
-                <>
-                  {cart.length === 0 ? (
-                    <div className="py-12 text-center">
-                      <div className="text-6xl mb-4">🛒</div>
-                      <p className="text-xl text-gray-600">Your cart is empty</p>
-                      <button
-                        onClick={() => window.history.back()}
-                        className="mt-6 inline-flex items-center rounded-md bg-[#2DD4BF] px-6 py-2 text-sm font-medium text-white hover:bg-[#20B8A2] focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:ring-offset-2"
-                      >
-                        Continue Shopping
-                      </button>
-                    </div>
+      <div className="container mx-auto px-4 py-8">
+        {/* Cart Summary Panel */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-10 -mt-12 border border-primary-100 relative z-20">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center mb-4 md:mb-0">
+              <div className="bg-primary-100 p-3 rounded-full mr-4">
+                <ShoppingCart className="h-6 w-6 text-primary-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-neutral-800">Shopping Cart</h2>
+                <p className="text-neutral-500">
+                  {loading ? (
+                    <Skeleton className="h-4 w-24" />
                   ) : (
-                    <div className="space-y-6">
-                      {/* Cart header */}
-                      <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-gray-50 rounded-lg font-medium">
-                        <div className="col-span-5">Product</div>
-                        <div className="col-span-2 text-center">Price</div>
-                        <div className="col-span-2 text-center">Quantity</div>
-                        <div className="col-span-2 text-center">Subtotal</div>
-                        <div className="col-span-1"></div>
-                      </div>
+                    `${calculateTotalItems()} item${calculateTotalItems() !== 1 ? "s" : ""} in your cart`
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => window.history.back()}
+                className="border-primary-200 text-primary-700 hover:bg-primary-50"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Continue Shopping
+              </Button>
+              {!loading && cart.length > 0 && (
+                <Button
+                  onClick={() => {
+                    const total = calculateTotal()
+                    router.push(`/patient/payment?total=${total.toFixed(2)}`)
+                  }}
+                  className="bg-primary-500 hover:bg-primary-600 text-white"
+                >
+                  <ShoppingBag className="mr-2 h-4 w-4" />
+                  Checkout
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
 
-                      {/* Cart items */}
-                      <ul className="space-y-4">
-                        {cart.map((item) => (
-                          <li
-                            key={item.medicament_id}
-                            className="rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden hover:shadow-lg transition-shadow p-4"
-                          >
-                            <div className="grid md:grid-cols-12 gap-4 items-center">
-                              {/* Product info */}
-                              <div className="md:col-span-5">
-                                <h2 className="text-xl font-bold text-gray-900">{item.name}</h2>
-                                <p className="text-sm text-[#2DD4BF] font-medium">{item.dosage}</p>
-                                <p className="mt-2 text-sm text-gray-600 md:hidden">{formatPrice(item.price)} each</p>
-                                <p className="mt-2 text-sm text-gray-600">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Cart Items Section */}
+          <div className="lg:col-span-2">
+            {loading ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, index) => (
+                  <Card key={index} className="overflow-hidden border border-primary-100">
+                    <CardContent className="p-0">
+                      <div className="p-5 space-y-4">
+                        <div className="flex justify-between">
+                          <Skeleton className="h-6 w-1/3" />
+                          <Skeleton className="h-6 w-1/6" />
+                        </div>
+                        <Skeleton className="h-4 w-2/3" />
+                        <div className="flex justify-between items-center pt-4">
+                          <Skeleton className="h-10 w-28" />
+                          <Skeleton className="h-6 w-1/6" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <>
+                {cart.length === 0 ? (
+                  <Card className="border border-primary-100 overflow-hidden">
+                    <CardContent className="p-8 flex flex-col items-center justify-center">
+                      <div className="bg-primary-50 p-6 rounded-full mb-6">
+                        <ShoppingCart className="h-12 w-12 text-primary-400" />
+                      </div>
+                      <h3 className="text-2xl font-semibold text-neutral-800 mb-2">Your cart is empty</h3>
+                      <p className="text-neutral-500 text-center max-w-md mb-6">
+                        Looks like you haven t added any medications to your cart yet.
+                      </p>
+                      <Button
+                        onClick={() => window.history.back()}
+                        className="bg-primary-500 hover:bg-primary-600 text-white"
+                      >
+                        Browse Medications
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {cart.map((item) => (
+                      <Card
+                        key={item.medicament_id}
+                        className="overflow-hidden border border-primary-100 hover:shadow-md transition-shadow"
+                      >
+                        <CardContent className="p-0">
+                          <div className="p-5">
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <h3 className="text-xl font-semibold text-neutral-800">{item.name}</h3>
+                                {item.dosage && (
+                                  <Badge className="bg-primary-100 text-primary-700 hover:bg-primary-200 font-normal">
+                                    {item.dosage}
+                                  </Badge>
+                                )}
+                                <p className="text-sm text-neutral-600 mt-2">
                                   {item.description || "No description available"}
                                 </p>
                               </div>
-
-                              {/* Price */}
-                              <div className="md:col-span-2 text-center hidden md:block">
-                                <p className="font-medium">{formatPrice(item.price)}</p>
+                              <div className="text-right">
+                                <p className="text-lg font-semibold text-primary-600">{formatPrice(item.price)}</p>
+                                <p className="text-sm text-neutral-500">per unit</p>
                               </div>
+                            </div>
 
-                              {/* Quantity controls */}
-                              <div className="md:col-span-2 flex items-center justify-center space-x-3">
-                                <button
-                                  className="h-8 w-8 flex items-center justify-center rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            <div className="flex justify-between items-center mt-6 pt-4 border-t border-primary-100">
+                              <div className="flex items-center space-x-1">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 rounded-full border-primary-200"
                                   onClick={() => {
                                     if (item.quantity > 1) {
                                       updateQuantity(item.medicament_id, item.quantity - 1)
@@ -176,96 +254,110 @@ export default function CartPage() {
                                     }
                                   }}
                                 >
-                                  -
-                                </button>
-                                <span className="w-8 text-center font-medium">{item.quantity}</span>
-                                <button
-                                  className="h-8 w-8 flex items-center justify-center rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="w-10 text-center font-medium text-neutral-800">{item.quantity}</span>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 rounded-full border-primary-200"
                                   onClick={() => updateQuantity(item.medicament_id, item.quantity + 1)}
                                 >
-                                  +
-                                </button>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
                               </div>
 
-                              {/* Subtotal */}
-                              <div className="md:col-span-2 text-center">
-                                <p className="font-bold text-[#2DD4BF]">{formatPrice(calculateItemSubtotal(item))}</p>
-                              </div>
-
-                              {/* Remove button */}
-                              <div className="md:col-span-1 flex justify-end">
-                                <button
-                                  className="text-red-500 hover:text-red-700"
+                              <div className="flex items-center space-x-4">
+                                <p className="font-semibold text-lg text-neutral-800">
+                                  {formatPrice(calculateItemSubtotal(item))}
+                                </p>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-neutral-400 hover:text-red-500 hover:bg-red-50"
                                   onClick={() => removeItem(item.medicament_id)}
                                 >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-5 w-5"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </button>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </div>
-                          </li>
-                        ))}
-                      </ul>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
-                      {/* Order summary */}
-                      <div className="mt-8 border-t pt-6">
-                        <div className="bg-gray-50 p-6 rounded-lg">
-                          <h3 className="text-lg font-bold mb-4">Order Summary</h3>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-600">Subtotal</span>
-                              <span className="font-medium">{formatPrice(calculateTotal())}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-600">Total Items</span>
-                              <span className="font-medium">{calculateTotalItems()}</span>
-                            </div>
-                            <div className="border-t border-gray-200 my-2 pt-2"></div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-lg font-bold">Total</span>
-                              <span className="text-lg font-bold text-[#2DD4BF]">{formatPrice(calculateTotal())}</span>
-                            </div>
+          {/* Order Summary Section */}
+          <div className="lg:col-span-1">
+            <Card className="border border-primary-100 sticky top-4">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-semibold text-neutral-800 mb-6">Order Summary</h3>
+
+                {loading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <div className="pt-4 mt-4 border-t border-primary-100">
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <Skeleton className="h-10 w-full mt-6" />
+                  </div>
+                ) : (
+                  <>
+                    {cart.length === 0 ? (
+                      <div className="bg-neutral-50 rounded-lg p-4 flex items-start">
+                        <AlertCircle className="h-5 w-5 text-neutral-400 mr-3 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-neutral-600">Add items to your cart to see the order summary.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-neutral-600">
+                            <span>Subtotal ({calculateTotalItems()} items)</span>
+                            <span>{formatPrice(calculateTotal())}</span>
+                          </div>
+                          <div className="flex justify-between text-neutral-600">
+                            <span>Shipping</span>
+                            <span className="text-primary-600">Free</span>
                           </div>
 
-                          <div className="mt-6 flex flex-col gap-3">
-                            <button
-                              disabled={cart.length === 0}
-                              onClick={() => {
-                                const total = calculateTotal()
-                                router.push(`/patient/payment?total=${total.toFixed(2)}`) // ✅ Redirect with total
-                              }}
-                              className={`w-full rounded-md px-6 py-2 text-sm font-medium text-white ${
-                                cart.length === 0
-                                  ? "bg-gray-300 cursor-not-allowed"
-                                  : "bg-[#2DD4BF] hover:bg-[#20B8A2] focus:ring-[#2DD4BF]"
-                              }`}
-                            >
-                              Proceed to Checkout
-                            </button>
-                            <button
-                              onClick={() => window.history.back()}
-                              className="w-full rounded-md border border-gray-300 bg-white px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:ring-offset-2"
-                            >
-                              Continue Shopping
-                            </button>
+                          <div className="pt-4 mt-2 border-t border-primary-100">
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg font-semibold text-neutral-800">Total</span>
+                              <span className="text-xl font-bold text-primary-600">
+                                {formatPrice(calculateTotal())}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+
+                        <Button
+                          className="w-full mt-6 bg-primary-500 hover:bg-primary-600 text-white"
+                          onClick={() => {
+                            const total = calculateTotal()
+                            router.push(`/patient/payment?total=${total.toFixed(2)}`)
+                          }}
+                        >
+                          Proceed to Checkout
+                        </Button>
+
+                        <div className="mt-6 bg-primary-50 rounded-lg p-4">
+                          <h4 className="font-medium text-primary-700 mb-2">Secure Checkout</h4>
+                          <p className="text-sm text-primary-600">
+                            Your payment information is processed securely. We do not store credit card details.
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

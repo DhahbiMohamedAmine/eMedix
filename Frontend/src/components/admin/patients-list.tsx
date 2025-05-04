@@ -56,7 +56,7 @@ export function PatientsList() {
     (patient) =>
       patient.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      patient.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const indexOfLastPatient = currentPage * patientsPerPage
@@ -78,7 +78,7 @@ export function PatientsList() {
   }
 
   return (
-    <Card>
+    <Card className="dark:bg-gray-800 dark:text-gray-100">
       <CardHeader className="pb-2">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <CardTitle className="text-lg font-semibold">{dictionary.dashboard.patientList}</CardTitle>
@@ -104,9 +104,9 @@ export function PatientsList() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse" dir={dir}>
+              <table className="w-full border-collapse dark:text-gray-100" dir={dir}>
                 <thead>
-                  <tr className="border-b border-gray-200">
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
                     <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">
                       {dictionary.dashboard.photo}
                     </th>
@@ -126,7 +126,7 @@ export function PatientsList() {
                 </thead>
                 <tbody>
                   {currentPatients.map((patient) => (
-                    <tr key={patient.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <tr key={patient.id} className="border-b border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
                       <td className="py-3 px-4">
                         <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200">
                           {patient.photo ? (

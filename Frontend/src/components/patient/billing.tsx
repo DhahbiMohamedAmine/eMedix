@@ -75,12 +75,12 @@ const BillingPage = () => {
         doc.line(20, 138, 190, 138)
 
         doc.text("Medical Services", 20, 146)
-        doc.text(`$${formattedAmount}`, 170, 146, { align: "right" })
+        doc.text(`${formattedAmount} DT`, 170, 146, { align: "right" })
 
         doc.line(20, 152, 190, 152)
         doc.setFont("helvetica", "bold")
         doc.text("Total", 20, 160)
-        doc.text(`$${formattedAmount}`, 170, 160, { align: "right" })
+        doc.text(`${formattedAmount} DT`, 170, 160, { align: "right" })
 
         // Add footer
         doc.setFont("helvetica", "normal")
@@ -176,11 +176,11 @@ const BillingPage = () => {
               <div className="border-t border-b py-4 mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">Medical Services</span>
-                  <span className="font-medium">${formattedAmount}</span>
+                  <span className="font-medium">{formattedAmount} DT</span>
                 </div>
                 <div className="flex justify-between items-center font-bold text-lg">
                   <span>Total</span>
-                  <span>${formattedAmount}</span>
+                  <span>{formattedAmount} DT</span>
                 </div>
               </div>
 

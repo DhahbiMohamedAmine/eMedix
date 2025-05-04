@@ -2,10 +2,17 @@
 
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { LogOut, User, Clock, Calendar } from "lucide-react"
+import { LogOut, User, Clock, Calendar, ShoppingCart, Home, PillIcon as Pills, Stethoscope, Bell } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { NotificationBadge } from "@/components/notification-badge"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface UserData {
   photo?: string
@@ -21,14 +28,13 @@ interface Notification {
   timestamp: number
 }
 
-// Add this interface to define the appointment structure
 interface Appointment {
   id: number
   status: string
-  // Add other appointment properties as needed
 }
 
 export default function HeaderComponent() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showDropdown, setShowDropdown] = useState(false)
   const router = useRouter()
   const [userData, setUserData] = useState<UserData | null>(null)
@@ -293,91 +299,150 @@ export default function HeaderComponent() {
   const unreadNotifications = notifications.length
 
   return (
-    <header className="bg-blue-500 text-white px-4 py-4">
-      <div className="container mx-auto flex items-center">
-        {/* Logo - Left aligned with some right margin */}
-        <Link href="/home" className="text-white font-bold text-2xl mr-auto">
-          eMedix
-        </Link>
-
-        {/* Navigation Links - Right aligned but before the profile */}
-        <div className="flex space-x-6 mr-6">
-          <Link href="/home" className="text-white hover:text-blue-200">
-            Home
-          </Link>
-          <Link href="/medicament" className="text-white hover:text-blue-200">
-            Medicaments
-          </Link>
-          <Link href="/doctorlist" className="text-white hover:text-blue-200">
-            All doctors
-          </Link>
-        </div>
-
-        {/* User Profile - Far right */}
-        <div className="relative">
-          <button className="flex items-center focus:outline-none" onClick={() => setShowDropdown(!showDropdown)}>
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white flex items-center justify-center bg-blue-400">
-              {userData && userData.photo ? (
-                <Image
-                  src={getPhotoUrl() || "/placeholder.svg"}
-                  alt={`${userData.prenom} ${userData.nom}`}
-                  width={40}
-                  height={40}
-                  className="object-cover w-full h-full"
-                  unoptimized
-                />
-              ) : (
-                <User className="w-6 h-6 text-white" />
-              )}
+    <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-primary-600 shadow-md">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex h-14 items-center justify-between">
+          {/* Logo */}
+          <Link href="/home" className="flex items-center">
+            <div className="bg-white text-primary-600 rounded-lg p-2 mr-2">
+              <span className="font-bold text-xl">e</span>
             </div>
+            <span className="font-bold text-xl text-white">Medix</span>
+          </Link>
+
+          {/* Navigation Links - Desktop */}
+          <nav className="hidden md:flex items-center space-x-6">
+            <Link
+              href="/home"
+              className="flex items-center text-sm font-medium text-white hover:text-primary-100 transition-colors"
+            >
+              <Home className="w-4 h-4 mr-1" />
+              Home
+            </Link>
+            <Link
+              href="/patient/medicaments"
+              className="flex items-center text-sm font-medium text-white hover:text-primary-100 transition-colors"
+            >
+              <Pills className="w-4 h-4 mr-1" />
+              Medications
+            </Link>
+            <Link
+              href="/patient/doctorlist"
+              className="flex items-center text-sm font-medium text-white hover:text-primary-100 transition-colors"
+            >
+              <Stethoscope className="w-4 h-4 mr-1" />
+              Doctors
+            </Link>
+            <Link
+              href="/patient/cart"
+              className="flex items-center text-sm font-medium text-white hover:text-primary-100 transition-colors"
+            >
+              <ShoppingCart className="w-4 h-4 mr-1" />
+              Cart
+            </Link>
+          </nav>
+
+          {/* User Profile */}
+          <div className="flex items-center gap-4">
+            {/* Notifications */}
             {unreadNotifications > 0 && (
-              <div className="absolute -top-1 -right-1">
-                <NotificationBadge count={unreadNotifications} />
-              </div>
+              <Link
+                href="/patient/appointmentlist"
+                onClick={handleAppointmentClick}
+                className="relative p-2 rounded-full hover:bg-primary-400 transition-colors"
+              >
+                <Bell className="h-5 w-5 text-white" />
+                <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-medium text-primary-600">
+                  {unreadNotifications}
+                </span>
+              </Link>
             )}
-          </button>
 
-          {showDropdown && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-[9999]">
-              <Link
-                href="profile"
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                onClick={() => setShowDropdown(false)}
-              >
-                <User className="w-4 h-4 mr-2" />
-                Profile
-              </Link>
-              <div className="relative">
-                <Link
-                  href="appointmentlist"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                  onClick={handleAppointmentClick}
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  My appointments
-                  {unreadNotifications > 0 && <NotificationBadge count={unreadNotifications} />}
-                </Link>
-              </div>
-              <Link
-                href="appointment-history"
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                onClick={() => setShowDropdown(false)}
-              >
-                <Clock className="w-4 h-4 mr-2" />
-                Appointment History
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </button>
-            </div>
-          )}
+            {/* User Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary-400">
+                  <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white flex items-center justify-center bg-primary-400">
+                    {userData && userData.photo ? (
+                      <Image
+                        src={getPhotoUrl() || "/placeholder.svg"}
+                        alt={`${userData.prenom} ${userData.nom}`}
+                        width={40}
+                        height={40}
+                        className="object-cover w-full h-full"
+                        unoptimized
+                      />
+                    ) : (
+                      <User className="h-5 w-5 text-white" />
+                    )}
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-white border border-neutral-200 shadow-lg">
+                {userData && (
+                  <div className=" rounded-full  flex items-center gap-2 p-4 border-b border-neutral-100">
+                    <div className="rounded-full flex h-10 w-10 items-center justify-center  bg-primary-100">
+                      {userData.photo ? (
+                        <Image
+                          src={getPhotoUrl() || "/placeholder.svg"}
+                          alt={`${userData.prenom} ${userData.nom}`}
+                          width={70}
+                          height={70}
+                          className="rounded-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <User className="h-4 w-4 text-primary-500" />
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-0.5">
+                      <p className="text-sm font-medium text-neutral-900">{`${userData.prenom} ${userData.nom}`}</p>
+                      <p className="text-xs text-neutral-500">Patient</p>
+                    </div>
+                  </div>
+                )}
+                <div className="p-1">
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link href="/patient/profile" className="flex cursor-pointer items-center px-3 py-2">
+                      <User className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link
+                      href="/patient/appointmentlist"
+                      className="flex cursor-pointer items-center px-3 py-2"
+                      onClick={handleAppointmentClick}
+                    >
+                      <Calendar className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">My Appointments</span>
+                      {unreadNotifications > 0 && (
+                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-[10px] font-medium text-white">
+                          {unreadNotifications}
+                        </span>
+                      )}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link href="/patient/appointment-history" className="flex cursor-pointer items-center px-3 py-2">
+                      <Clock className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">Appointment History</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1 bg-neutral-200" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer rounded-md text-red-600 focus:bg-red-50 focus:text-red-600 px-3 py-2"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
   )
 }
-

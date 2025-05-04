@@ -21,7 +21,6 @@ export function MedicalStatsCards() {
   const dictionary = useDictionary()
 
   useEffect(() => {
-    // Fetch appointments count
     async function fetchAppointmentsCount() {
       try {
         setAppointmentsLoading(true)
@@ -43,7 +42,6 @@ export function MedicalStatsCards() {
       }
     }
 
-    // Fetch patients count
     async function fetchPatientsCount() {
       try {
         setPatientsLoading(true)
@@ -65,7 +63,6 @@ export function MedicalStatsCards() {
       }
     }
 
-    // Fetch doctors count
     async function fetchDoctorsCount() {
       try {
         setDoctorsLoading(true)
@@ -87,7 +84,6 @@ export function MedicalStatsCards() {
       }
     }
 
-    // Fetch all data
     fetchAppointmentsCount()
     fetchPatientsCount()
     fetchDoctorsCount()
@@ -175,20 +171,20 @@ function StatCard({
   dictionary,
 }: StatCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 relative overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 relative overflow-hidden">
       <div className="flex justify-between">
         <div>
-          <p className="text-sm text-gray-500 font-medium">{title}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
           {isLoading ? (
-            <div className="h-8 mt-1 w-16 bg-gray-200 animate-pulse rounded"></div>
+            <div className="h-8 mt-1 w-16 bg-gray-200 animate-pulse rounded dark:bg-gray-600"></div>
           ) : error ? (
             <div className="text-sm text-red-500 mt-1">{dictionary.dashboard.stats.errorLoadingData}</div>
           ) : (
-            <h3 className="text-2xl font-bold mt-1">{value}</h3>
+            <h3 className="text-2xl font-bold mt-1 text-gray-800 dark:text-gray-200">{value}</h3>
           )}
           <div className={`mt-2 text-sm ${changeColor} flex items-center`}>
             <span>{change}</span>
-            {period && <span className="text-gray-500 ml-1">{period}</span>}
+            {period && <span className="text-gray-500 dark:text-gray-400 ml-1">{period}</span>}
           </div>
         </div>
         <div className={`${iconBg} p-3 rounded-lg`}>{icon}</div>
