@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime
 
 class BillingBase(BaseModel):
@@ -8,11 +9,14 @@ class BillingBase(BaseModel):
     date: datetime
 
 class BillingCreate(BillingBase):
-    pass
+    cart_id: Optional[int] = None
 
 class BillingUpdate(BillingBase):
-    pass
+    cart_id: Optional[int] = None
 
 class BillingOut(BillingBase):
     id: int
+    cart_id: Optional[int]
 
+    class Config:
+        orm_mode = True

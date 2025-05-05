@@ -10,31 +10,87 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 
+// Update the type definitions to match your API response
+type Medicament = {
+  id: number // This is the key change - API returns 'id', not 'medicament_id'
+  name: string
+  price: number
+}
+
+type CartResponse = {
+  id: number
+  patient_id: number
+  total_price: number
+  medicaments: Medicament[]
+}
+
+// This is for our internal state management
 type CartItem = {
-  medicament_id: number
+  id: number
   name: string
   description?: string
   dosage?: string
   quantity: number
-  price?: number
+  price: number
 }
 
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [cartId, setCartId] = useState<number>(1) // Default to 1, can be changed later
   const [loading, setLoading] = useState(true)
+  const [totalPrice, setTotalPrice] = useState(0)
   const router = useRouter()
 
+  // Replace the fetchCart function with this improved version
   const fetchCart = async () => {
     try {
       setLoading(true)
-      const res = await fetch("http://localhost:8000/cart")
+      // In a real app, you would get the cart ID from user session or context
+      const res = await fetch(`http://localhost:8000/cart/${cartId}`)
+
       if (!res.ok) {
+        if (res.status === 404) {
+          // Cart not found is not an error, just an empty cart
+          setCart([])
+          setTotalPrice(0)
+          return
+        }
         throw new Error("Failed to fetch cart")
       }
-      const data = await res.json()
-      setCart(data)
+
+      const data: CartResponse = await res.json()
+      setTotalPrice(data.total_price)
+
+      // Get the quantities from a separate endpoint
+      const itemsRes = await fetch(`http://localhost:8000/cart/${cartId}/items`)
+      let quantities: Record<number, number> = {}
+
+      if (itemsRes.ok) {
+        const itemsData = await itemsRes.json()
+        // Create a map of medicament_id to quantity
+        quantities = itemsData.reduce((acc: Record<number, number>, item: any) => {
+          acc[item.medicament_id] = item.quantity
+          return acc
+        }, {})
+      }
+
+      // Transform the medicaments into CartItem format with proper ID mapping
+      const cartItems: CartItem[] = data.medicaments.map((med) => {
+        return {
+          id: med.id,
+          name: med.name,
+          price: med.price,
+          quantity: quantities[med.id] || 1, // Use quantity from map or default to 1
+          description: "", // These fields would need to come from the API
+          dosage: "",
+        }
+      })
+
+      setCart(cartItems)
+      console.log("Cart data loaded:", cartItems)
     } catch (error) {
       console.error("Error fetching cart:", error)
+      alert("Failed to load cart")
     } finally {
       setLoading(false)
     }
@@ -44,55 +100,116 @@ export default function CartPage() {
     fetchCart()
   }, [])
 
-  const updateQuantity = async (medicament_id: number, quantity: number) => {
-    if (quantity < 0) return
+  // Replace the updateQuantity function with this improved version
+  const updateQuantity = async (id: number, quantity: number) => {
+    if (quantity < 1) return
+
+    // Validate id is a valid number
+    if (typeof id !== "number" || isNaN(id)) {
+      console.error("Invalid medicament ID:", id)
+      alert("Error: Invalid medicament ID")
+      return
+    }
 
     try {
-      const response = await fetch("http://localhost:8000/cart/update", {
-        method: "POST",
+      // Update local state optimistically first for better UX
+      setCart((prevCart) => prevCart.map((item) => (item.id === id ? { ...item, quantity } : item)))
+
+      // Recalculate total price
+      const newTotal = cart.reduce((total, item) => {
+        return total + item.price * (item.id === id ? quantity : item.quantity)
+      }, 0)
+      setTotalPrice(newTotal)
+
+      // Get all current items to send in the update
+      const allItems = cart.map((item) => {
+        return {
+          medicament_id: item.id,
+          quantity: item.id === id ? quantity : item.quantity,
+        }
+      })
+
+      const response = await fetch(`http://localhost:8000/cart/update/${cartId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ medicament_id, quantity }),
+        body: JSON.stringify({
+          items: allItems,
+        }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update cart")
+        const errorData = await response.json()
+        throw new Error(errorData.detail || "Failed to update cart")
       }
 
+      // Refresh cart to ensure we have the latest data
       fetchCart()
     } catch (error) {
       console.error("Error updating cart:", error)
       alert("Failed to update cart")
+      // Revert optimistic update by refetching
+      fetchCart()
     }
   }
 
-  const removeItem = async (medicament_id: number) => {
+  const removeItem = async (id: number) => {
+    // Validate id is a valid number
+    if (typeof id !== "number" || isNaN(id)) {
+      console.error("Invalid medicament ID:", id)
+      alert("Error: Invalid medicament ID")
+      return
+    }
+
     try {
-      const response = await fetch("http://localhost:8000/cart/remove", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ medicament_id }),
+      const response = await fetch(`http://localhost:8000/cart/delete/${cartId}/item/${id}`, {
+        method: "DELETE",
       })
 
       if (!response.ok) {
         throw new Error("Failed to remove item from cart")
       }
 
-      fetchCart()
+      // Update local state optimistically
+      const removedItem = cart.find((item) => item.id === id)
+      if (removedItem) {
+        const removedItemPrice = removedItem.price * removedItem.quantity
+        setTotalPrice((prev) => Math.max(prev - removedItemPrice, 0))
+      }
+
+      setCart((prevCart) => prevCart.filter((item) => item.id !== id))
     } catch (error) {
       console.error("Error removing item from cart:", error)
       alert("Failed to remove item from cart")
+      // Revert optimistic update
+      fetchCart()
+    }
+  }
+
+  const deleteCart = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/cart/deleteCart/${cartId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete cart")
+      }
+
+      setCart([])
+      setTotalPrice(0)
+    } catch (error) {
+      console.error("Error deleting cart:", error)
+      alert("Failed to delete cart")
     }
   }
 
   const calculateItemSubtotal = (item: CartItem) => {
-    const price = item.price || 0
-    return price * item.quantity
+    return item.price * item.quantity
   }
 
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
-      const price = item.price || 0
-      return total + price * item.quantity
+      return total + item.price * item.quantity
     }, 0)
   }
 
@@ -100,8 +217,7 @@ export default function CartPage() {
     return cart.reduce((total, item) => total + item.quantity, 0)
   }
 
-  const formatPrice = (price?: number) => {
-    if (price === undefined || price === null) return "N/A"
+  const formatPrice = (price: number) => {
     return `${price.toFixed(2)} DT`
   }
 
@@ -136,13 +252,14 @@ export default function CartPage() {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-neutral-800">Shopping Cart</h2>
-                <p className="text-neutral-500">
+                {/* Fix: Don't put Skeleton inside p tag */}
+                <div className="text-neutral-500">
                   {loading ? (
                     <Skeleton className="h-4 w-24" />
                   ) : (
                     `${calculateTotalItems()} item${calculateTotalItems() !== 1 ? "s" : ""} in your cart`
                   )}
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -157,8 +274,7 @@ export default function CartPage() {
               {!loading && cart.length > 0 && (
                 <Button
                   onClick={() => {
-                    const total = calculateTotal()
-                    router.push(`/patient/payment?total=${total.toFixed(2)}`)
+                    router.push(`/patient/payment?total=${totalPrice.toFixed(2)}`)
                   }}
                   className="bg-primary-500 hover:bg-primary-600 text-white"
                 >
@@ -203,7 +319,7 @@ export default function CartPage() {
                       </div>
                       <h3 className="text-2xl font-semibold text-neutral-800 mb-2">Your cart is empty</h3>
                       <p className="text-neutral-500 text-center max-w-md mb-6">
-                        Looks like you haven t added any medications to your cart yet.
+                        Looks like you haven&apos;t added any medications to your cart yet.
                       </p>
                       <Button
                         onClick={() => window.history.back()}
@@ -217,7 +333,7 @@ export default function CartPage() {
                   <div className="space-y-4">
                     {cart.map((item) => (
                       <Card
-                        key={item.medicament_id}
+                        key={item.id}
                         className="overflow-hidden border border-primary-100 hover:shadow-md transition-shadow"
                       >
                         <CardContent className="p-0">
@@ -248,9 +364,9 @@ export default function CartPage() {
                                   className="h-8 w-8 rounded-full border-primary-200"
                                   onClick={() => {
                                     if (item.quantity > 1) {
-                                      updateQuantity(item.medicament_id, item.quantity - 1)
+                                      updateQuantity(item.id, item.quantity - 1)
                                     } else {
-                                      removeItem(item.medicament_id)
+                                      removeItem(item.id)
                                     }
                                   }}
                                 >
@@ -261,7 +377,7 @@ export default function CartPage() {
                                   size="icon"
                                   variant="outline"
                                   className="h-8 w-8 rounded-full border-primary-200"
-                                  onClick={() => updateQuantity(item.medicament_id, item.quantity + 1)}
+                                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
@@ -275,7 +391,7 @@ export default function CartPage() {
                                   size="icon"
                                   variant="ghost"
                                   className="h-8 w-8 text-neutral-400 hover:text-red-500 hover:bg-red-50"
-                                  onClick={() => removeItem(item.medicament_id)}
+                                  onClick={() => removeItem(item.id)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -329,9 +445,7 @@ export default function CartPage() {
                           <div className="pt-4 mt-2 border-t border-primary-100">
                             <div className="flex justify-between items-center">
                               <span className="text-lg font-semibold text-neutral-800">Total</span>
-                              <span className="text-xl font-bold text-primary-600">
-                                {formatPrice(calculateTotal())}
-                              </span>
+                              <span className="text-xl font-bold text-primary-600">{formatPrice(totalPrice)}</span>
                             </div>
                           </div>
                         </div>
@@ -339,8 +453,7 @@ export default function CartPage() {
                         <Button
                           className="w-full mt-6 bg-primary-500 hover:bg-primary-600 text-white"
                           onClick={() => {
-                            const total = calculateTotal()
-                            router.push(`/patient/payment?total=${total.toFixed(2)}`)
+                            router.push(`/patient/payment?total=${totalPrice.toFixed(2)}`)
                           }}
                         >
                           Proceed to Checkout

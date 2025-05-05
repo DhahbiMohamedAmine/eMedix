@@ -48,6 +48,7 @@ async def update_medicament_price(
     medicament.price = medicament_data.price
     medicament.dosage = medicament_data.dosage
     medicament.duration = medicament_data.duration
+    medicament.stock = medicament_data.stock 
 
     db.add(medicament)
     await db.commit()

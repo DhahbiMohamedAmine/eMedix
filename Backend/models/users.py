@@ -4,8 +4,7 @@ from database import Base
 
 class User(Base):
     __tablename__ = 'users'
-
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True,autoincrement=True)
     nom = Column(String(50), nullable=False)
     prenom = Column(String(50), nullable=False)
     telephone = Column(String(20), nullable=False)

@@ -11,4 +11,6 @@ class Cart(Base):
     total_price = Column(Float, default=0.0)
 
     patient = relationship("Patient", backref="carts")
-    medicaments = relationship("Medicament", secondary="cart_medicament", backref="carts")
+from models.cart_medicament import cart_medicament  # 👈 This must be before the relationship is used
+
+medicaments = relationship("Medicament", secondary=cart_medicament, backref="carts")
