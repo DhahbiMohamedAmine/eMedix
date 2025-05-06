@@ -19,5 +19,3 @@ async def create_payment_intent(payment: PaymentRequest):
         automatic_payment_methods={"enabled": True},
     )
     return {"clientSecret": intent.client_secret}
-
-

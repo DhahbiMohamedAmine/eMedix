@@ -1,3 +1,4 @@
+# Dto/medicamentdto.py
 from pydantic import BaseModel
 from typing import Optional
 
@@ -7,17 +8,19 @@ class MedicamentBase(BaseModel):
     price: Optional[float] = None
     dosage: str
     duration: str
+    stock: int  # Added stock here
 
 class MedicamentCreate(MedicamentBase):
     pass
 
-# Dto/medicament.py
 class MedicamentUpdate(BaseModel):
     price: float
     dosage: str
     duration: str
+    stock: int  # Include stock in update too
 
 class MedicamentResponse(MedicamentBase):
     id: int
 
-   
+    class Config:
+        orm_mode = True

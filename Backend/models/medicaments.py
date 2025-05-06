@@ -12,6 +12,6 @@ class Medicament(Base):
     price = Column(Float, nullable=True)
     dosage = Column(String(100), nullable=False)
     duration = Column(String(100), nullable=False)
-
+    stock= Column(Integer, nullable=False)
     # Relationships
     prescriptions = relationship("Prescription", secondary="prescription_medicament", back_populates="medicaments")
