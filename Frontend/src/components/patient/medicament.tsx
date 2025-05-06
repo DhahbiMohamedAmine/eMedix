@@ -28,7 +28,10 @@ type CartResponse = {
   id: number
   patient_id: number
   total_price: number
+<<<<<<< HEAD
   is_paid: boolean
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
   medicaments: Array<{
     id: number
     name: string
@@ -44,7 +47,11 @@ type Notification = {
 
 export default function MedicamentsPage() {
   const [patientId, setPatientId] = useState<number | null>(null)
+<<<<<<< HEAD
   const [activeCartId, setActiveCartId] = useState<number | null>(null)
+=======
+  const [cartId, setCartId] = useState<number | null>(null)
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
   const [medicaments, setMedicaments] = useState<Medicament[]>([])
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [selectedQuantities, setSelectedQuantities] = useState<Record<number, number>>({})
@@ -87,6 +94,7 @@ export default function MedicamentsPage() {
     setSelectedQuantities(initialQuantities)
   }, [medicaments])
 
+<<<<<<< HEAD
   // Fetch the active cart when patientId is available
   useEffect(() => {
     if (patientId) {
@@ -196,6 +204,50 @@ export default function MedicamentsPage() {
           // Map the medicaments with their quantities
           for (const med of cartData.medicaments) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+=======
+  // Fetch the current cart when patientId is available
+  useEffect(() => {
+    if (patientId) {
+      fetchCart()
+    }
+  }, [patientId])
+
+  const fetchCart = async () => {
+    if (!patientId) return
+
+    try {
+      // Use a hardcoded cart ID for now - in a real app, you'd get this from the API
+      // This is just for demonstration purposes
+      const tempCartId = 1
+      setCartId(tempCartId)
+
+      const response = await fetch(`http://localhost:8000/cart/${tempCartId}`)
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Cart not found is not an error, just an empty cart
+          setCartItems([])
+          return
+        }
+        throw new Error("Failed to fetch cart")
+      }
+
+      const cartData = await response.json()
+
+      // Extract medicaments and create cart items with quantities
+      const items: CartItem[] = []
+
+      if (cartData && cartData.medicaments) {
+        // We need to get the quantities from the cart_medicament table
+        // For now, we'll make a separate API call to get this information
+        const cartItemsResponse = await fetch(`http://localhost:8000/cart/${tempCartId}/items`)
+
+        if (cartItemsResponse.ok) {
+          const cartItemsData = await cartItemsResponse.json()
+
+          // Map the medicaments with their quantities
+          for (const med of cartData.medicaments) {
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
             const cartItem = cartItemsData.find((item: any) => item.medicament_id === med.id)
             const quantity = cartItem ? cartItem.quantity : 1
 
@@ -204,10 +256,14 @@ export default function MedicamentsPage() {
               quantity: quantity,
             })
           }
+<<<<<<< HEAD
           setCartItems(items)
         })
         .catch((error) => {
           console.error("Error fetching cart items:", error)
+=======
+        } else {
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
           // Fallback: just use the medicaments without quantities
           for (const med of cartData.medicaments) {
             items.push({
@@ -215,20 +271,34 @@ export default function MedicamentsPage() {
               quantity: 1,
             })
           }
+<<<<<<< HEAD
           setCartItems(items)
         })
     } else {
       setCartItems([])
+=======
+        }
+      }
+
+      setCartItems(items)
+    } catch (error) {
+      console.error("Error fetching cart:", error)
+      // Not showing notification here as it's not critical for the user to know
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     }
   }
 
   const fetchMedicaments = async () => {
     try {
       setLoading(true)
+<<<<<<< HEAD
       const res = await fetch("http://localhost:8000/medicaments", {
         // Add cache: 'no-cache' to ensure we always get fresh data
         cache: "no-cache",
       })
+=======
+      const res = await fetch("http://localhost:8000/medicaments")
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
       if (!res.ok) throw new Error("Failed to fetch medicaments")
       const data = await res.json()
       setMedicaments(data)
@@ -239,6 +309,7 @@ export default function MedicamentsPage() {
     }
   }
 
+<<<<<<< HEAD
   // Add this after the fetchMedicaments function
   useEffect(() => {
     // This effect will run when the component is focused (user returns to this page)
@@ -256,6 +327,11 @@ export default function MedicamentsPage() {
   // Function to update quantity directly in the database
   const updateCartQuantity = async (medicamentId: number, newQuantity: number, medicamentName: string) => {
     if (!patientId || !activeCartId) {
+=======
+  // Function to update quantity directly in the database
+  const updateCartQuantity = async (medicamentId: number, newQuantity: number, medicamentName: string) => {
+    if (!patientId || !cartId) {
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
       showNotification("Patient ID or Cart ID not found. Please log in again.", "error")
       return
     }
@@ -283,7 +359,11 @@ export default function MedicamentsPage() {
         )
 
         // Update the quantity in the database
+<<<<<<< HEAD
         const response = await fetch(`http://localhost:8000/cart/update/${activeCartId}`, {
+=======
+        const response = await fetch(`http://localhost:8000/cart/update/${cartId}`, {
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -299,8 +379,13 @@ export default function MedicamentsPage() {
         // Update was successful, show notification
         showNotification(`${medicamentName} quantity updated to ${newQuantity}`)
 
+<<<<<<< HEAD
         // Update local state
         setCartItems(updatedItems)
+=======
+        // Refresh cart to get the latest data
+        fetchCart()
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
       } else {
         // If item doesn't exist in cart, add it with the specified quantity
         const response = await fetch(`http://localhost:8000/cart/add/${patientId}`, {
@@ -325,13 +410,23 @@ export default function MedicamentsPage() {
         setCartItems((prev) => [...prev, { medicament_id: medicamentId, quantity: newQuantity }])
 
         showNotification(`${medicamentName} added to cart with quantity ${newQuantity}`)
+<<<<<<< HEAD
+=======
+
+        // Refresh cart to get the latest data
+        fetchCart()
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
       }
     } catch (error) {
       console.error("Error updating cart quantity:", error)
       showNotification(error instanceof Error ? error.message : "Failed to update quantity", "error")
 
       // Refresh cart to ensure UI is in sync with backend
+<<<<<<< HEAD
       fetchActiveCart()
+=======
+      fetchCart()
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     } finally {
       setUpdatingQuantity(null)
     }
@@ -373,6 +468,7 @@ export default function MedicamentsPage() {
     try {
       setAddingToCart(medicament_id)
 
+<<<<<<< HEAD
       // Ensure we have an active cart
       if (!activeCartId) {
         await getOrCreateActiveCart()
@@ -425,6 +521,52 @@ export default function MedicamentsPage() {
 
       // Refresh cart to ensure we have the latest state
       fetchActiveCart()
+=======
+      // Check if the item already exists in the cart
+      const existingItem = cartItems.find((item) => item.medicament_id === medicament_id)
+
+      // Get the selected quantity for this medicament
+      const quantity = selectedQuantities[medicament_id] || 1
+
+      // If item exists, update its quantity
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + quantity
+        await updateCartQuantity(medicament_id, newQuantity, medicamentName)
+      } else {
+        // If item doesn't exist, add it with the selected quantity
+        const response = await fetch(`http://localhost:8000/cart/add/${patientId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: [
+              {
+                medicament_id: medicament_id,
+                quantity: quantity,
+              },
+            ],
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || "Failed to add to cart")
+        }
+
+        // Update local state
+        setCartItems((prev) => [...prev, { medicament_id, quantity }])
+
+        showNotification(`${quantity} ${medicamentName}${quantity > 1 ? "s" : ""} added to your cart`)
+      }
+
+      // Reset the selected quantity back to 1 after adding to cart
+      setSelectedQuantities((prev) => ({ ...prev, [medicament_id]: 1 }))
+
+      // Refresh the cart data to ensure we have the latest state
+      fetchCart()
+    } catch (error) {
+      console.error("Error adding to cart:", error)
+      showNotification(error instanceof Error ? error.message : "Failed to add medicament to cart", "error")
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     } finally {
       setTimeout(() => setAddingToCart(null), 600)
     }

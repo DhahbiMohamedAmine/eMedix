@@ -7,12 +7,20 @@ from database import get_db
 from Dto.billingdto import BillingCreate, BillingUpdate, BillingOut
 from typing import List
 from datetime import timezone
+<<<<<<< HEAD
 from models.medicaments import Medicament
 from models.carte_items import cart_medicament
 
 router = APIRouter()
 
 
+=======
+
+router = APIRouter()
+
+
+# Create Billing
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 @router.post("/add", response_model=BillingOut)
 async def create_billing(billing: BillingCreate, db: AsyncSession = Depends(get_db)):
     try:
@@ -89,7 +97,11 @@ async def create_billing(billing: BillingCreate, db: AsyncSession = Depends(get_
             amount=billing.amount,
             payment_method=billing.payment_method,
             date=naive_date,
+<<<<<<< HEAD
             cart_id=billing.cart_id
+=======
+            cart_id=billing.cart_id  # ✅ Include cart_id
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
         )
         db.add(db_billing)
         await db.commit()
@@ -103,6 +115,7 @@ async def create_billing(billing: BillingCreate, db: AsyncSession = Depends(get_
         print(f"Error in create_billing: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+<<<<<<< HEAD
 # Add an endpoint to get billings by cart ID
 @router.get("/by-cart/{cart_id}", response_model=List[BillingOut])
 async def get_billings_by_cart(cart_id: int, db: AsyncSession = Depends(get_db)):
@@ -115,6 +128,8 @@ async def get_billings_by_cart(cart_id: int, db: AsyncSession = Depends(get_db))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
 # Get All Billings
 @router.get("/all", response_model=List[BillingOut])
@@ -144,6 +159,7 @@ async def update_billing(billing_id: int, billing_update: BillingUpdate, db: Asy
     if billing_update.date.tzinfo is not None:
         naive_date = billing_update.date.astimezone(timezone.utc).replace(tzinfo=None)
 
+<<<<<<< HEAD
     # If cart_id is changing, handle the cart status changes
     if billing.cart_id != billing_update.cart_id:
         # If there was a previous cart, check if we need to revert its paid status
@@ -162,11 +178,17 @@ async def update_billing(billing_id: int, billing_update: BillingUpdate, db: Asy
                     raise HTTPException(status_code=400, detail="New cart is already paid")
                 new_cart.is_paid = True
 
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     billing.order_id = billing_update.order_id
     billing.amount = billing_update.amount
     billing.payment_method = billing_update.payment_method
     billing.date = naive_date
+<<<<<<< HEAD
     billing.cart_id = billing_update.cart_id
+=======
+    billing.cart_id = billing_update.cart_id  # ✅ Include cart_id
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
     await db.commit()
     await db.refresh(billing)
@@ -179,6 +201,7 @@ async def delete_billing(billing_id: int, db: AsyncSession = Depends(get_db)):
     billing = await db.get(Billing, billing_id)
     if not billing:
         raise HTTPException(status_code=404, detail="Billing record not found")
+<<<<<<< HEAD
     
     # If there's an associated cart, revert its paid status
     if billing.cart_id:
@@ -186,6 +209,8 @@ async def delete_billing(billing_id: int, db: AsyncSession = Depends(get_db)):
         cart = cart_result.scalar_one_or_none()
         if cart:
             cart.is_paid = False
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
     await db.delete(billing)
     await db.commit()

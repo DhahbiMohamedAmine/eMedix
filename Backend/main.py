@@ -11,7 +11,11 @@ from routes.stats_router import router as stats_router
 from routes.cart_router import router as cart_router
 from routes.billing_router import router as billing_router
 from routes.message_router import router as message_router
+<<<<<<< HEAD
 from routes.payment import router as payment_router
+=======
+from routes.paiment import router as payment_router
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
 app = FastAPI()
 

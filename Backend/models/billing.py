@@ -16,4 +16,9 @@ class Billing(Base):
 
     # ✅ use string reference
 from models.Carts import Cart  # ✅ Ensures Cart is now defined
+<<<<<<< HEAD
 Billing.cart = relationship("Cart")
+=======
+Billing.cart = relationship("Cart")
+
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57

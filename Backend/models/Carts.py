@@ -11,6 +11,12 @@ class Cart(Base):
     total_price = Column(Float, default=0.0)
     is_paid = Column(Boolean, default=False)  # Add this column
     patient = relationship("Patient", backref="carts")
+<<<<<<< HEAD
 from models.carte_items import cart_medicament  # 👈 This must be before the relationship is used
 
 medicaments = relationship("Medicament", secondary=cart_medicament, backref="carts")
+=======
+from models.cart_medicament import cart_medicament  # 👈 This must be before the relationship is used
+
+medicaments = relationship("Medicament", secondary=cart_medicament, backref="carts")
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57

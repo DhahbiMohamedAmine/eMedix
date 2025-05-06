@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+<<<<<<< HEAD
 from sqlalchemy import insert, update, delete, Boolean
+=======
+from sqlalchemy import insert, update, delete
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 from typing import List
 
 from database import get_db
 from models.Carts import Cart
 from models.medicaments import Medicament
 from models.carte_items import cart_medicament
+<<<<<<< HEAD
 from Dto.carte import AddToCartRequest, CartOut, MedicamentInCart, MedicamentItem
 
 router = APIRouter()
@@ -27,6 +32,21 @@ async def add_to_cart(patient_id: int, request: AddToCartRequest, db: AsyncSessi
     if not cart:
         # Create a new cart if no unpaid cart exists
         cart = Cart(patient_id=patient_id, total_price=0.0, is_paid=False)
+=======
+from Dto.carte import AddToCartRequest, CartOut, MedicamentInCart
+
+router = APIRouter()
+
+# POST - Add items to cart (This is the one you've already implemented)
+@router.post("/add/{patient_id}", response_model=CartOut)
+async def add_to_cart(patient_id: int, request: AddToCartRequest, db: AsyncSession = Depends(get_db)):
+    # Check if a cart already exists for this patient
+    result = await db.execute(select(Cart).where(Cart.patient_id == patient_id))
+    cart = result.scalars().first()
+
+    if not cart:
+        cart = Cart(patient_id=patient_id, total_price=0.0)
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
         db.add(cart)
         await db.flush()  # ensures cart.id is generated
 
@@ -64,6 +84,7 @@ async def add_to_cart(patient_id: int, request: AddToCartRequest, db: AsyncSessi
         total_price=cart.total_price,
         medicaments=[
             MedicamentInCart(id=m.id, name=m.name, price=m.price) for m in medicaments
+<<<<<<< HEAD
         ],
         is_paid=cart.is_paid
     )
@@ -98,6 +119,12 @@ async def get_active_cart(patient_id: int, db: AsyncSession = Depends(get_db)):
     )
 
 # GET - Fetch Cart by Cart ID
+=======
+        ]
+    )
+
+# GET - Fetch Cart by Patient ID
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 @router.get("/{cart_id}", response_model=CartOut)
 async def get_cart(cart_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Cart).where(Cart.id == cart_id))
@@ -117,8 +144,12 @@ async def get_cart(cart_id: int, db: AsyncSession = Depends(get_db)):
         total_price=cart.total_price,
         medicaments=[
             MedicamentInCart(id=m.id, name=m.name, price=m.price) for m in medicaments
+<<<<<<< HEAD
         ],
         is_paid=cart.is_paid
+=======
+        ]
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     )
 
 # PUT - Update Cart (for example, updating quantity of items)
@@ -130,9 +161,12 @@ async def update_cart(cart_id: int, request: AddToCartRequest, db: AsyncSession 
 
     if not cart:
         raise HTTPException(status_code=404, detail="Cart not found")
+<<<<<<< HEAD
         
     if cart.is_paid:
         raise HTTPException(status_code=400, detail="Cannot update a paid cart")
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
     # Recalculate total price and update cart items
     cart.total_price = 0.0
@@ -169,6 +203,7 @@ async def update_cart(cart_id: int, request: AddToCartRequest, db: AsyncSession 
         total_price=cart.total_price,
         medicaments=[
             MedicamentInCart(id=m.id, name=m.name, price=m.price) for m in medicaments
+<<<<<<< HEAD
         ],
         is_paid=cart.is_paid
     )
@@ -230,6 +265,9 @@ async def mark_cart_as_paid(cart_id: int, db: AsyncSession = Depends(get_db)):
             MedicamentInCart(id=m.id, name=m.name, price=m.price) for m in medicaments
         ],
         is_paid=cart.is_paid
+=======
+        ]
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     )
 
 # DELETE - Remove Cart by Cart ID
@@ -250,7 +288,10 @@ async def delete_cart(cart_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     return {"message": f"Cart with ID {cart_id} deleted successfully"}
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 @router.delete("/delete/{cart_id}/item/{medicament_id}", response_model=dict)
 async def delete_cart_item(cart_id: int, medicament_id: int, db: AsyncSession = Depends(get_db)):
     # Check if the item exists in the cart
@@ -263,12 +304,15 @@ async def delete_cart_item(cart_id: int, medicament_id: int, db: AsyncSession = 
 
     if not cart_item:
         raise HTTPException(status_code=404, detail="Item not found in cart")
+<<<<<<< HEAD
         
     # Check if cart is paid
     cart_result = await db.execute(select(Cart).where(Cart.id == cart_id))
     cart = cart_result.scalar_one_or_none()
     if cart and cart.is_paid:
         raise HTTPException(status_code=400, detail="Cannot modify a paid cart")
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
     # Properly access quantity from the result mapping
     quantity = cart_item._mapping['quantity']
@@ -282,6 +326,11 @@ async def delete_cart_item(cart_id: int, medicament_id: int, db: AsyncSession = 
     item_total = medicament.price * quantity
 
     # Update cart total price
+<<<<<<< HEAD
+=======
+    cart_result = await db.execute(select(Cart).where(Cart.id == cart_id))
+    cart = cart_result.scalar_one_or_none()
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     if cart:
         cart.total_price = max(cart.total_price - item_total, 0.0)
 
@@ -295,6 +344,7 @@ async def delete_cart_item(cart_id: int, medicament_id: int, db: AsyncSession = 
     await db.commit()
 
     return {"message": f"Item with Medicament ID {medicament_id} removed from cart {cart_id}"}
+<<<<<<< HEAD
 
 # Add this endpoint to get cart items with quantities
 @router.get("/{cart_id}/items")
@@ -365,3 +415,5 @@ async def reset_cart_payment(cart_id: int, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+=======
+>>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
