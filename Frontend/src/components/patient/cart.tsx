@@ -13,11 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 // Update the type definitions to match your API response
 type Medicament = {
-<<<<<<< HEAD
   id: number
-=======
-  id: number // This is the key change - API returns 'id', not 'medicament_id'
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
   name: string
   price: number
 }
@@ -26,10 +22,7 @@ type CartResponse = {
   id: number
   patient_id: number
   total_price: number
-<<<<<<< HEAD
   is_paid: boolean
-=======
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
   medicaments: Medicament[]
 }
 
@@ -45,7 +38,6 @@ type CartItem = {
 
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([])
-<<<<<<< HEAD
   const [cartId, setCartId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [totalPrice, setTotalPrice] = useState(0)
@@ -185,64 +177,6 @@ export default function CartPage() {
       }
     } catch (error) {
       console.error("Error fetching active cart:", error)
-=======
-  const [cartId, setCartId] = useState<number>(1) // Default to 1, can be changed later
-  const [loading, setLoading] = useState(true)
-  const [totalPrice, setTotalPrice] = useState(0)
-  const router = useRouter()
-
-  // Replace the fetchCart function with this improved version
-  const fetchCart = async () => {
-    try {
-      setLoading(true)
-      // In a real app, you would get the cart ID from user session or context
-      const res = await fetch(`http://localhost:8000/cart/${cartId}`)
-
-      if (!res.ok) {
-        if (res.status === 404) {
-          // Cart not found is not an error, just an empty cart
-          setCart([])
-          setTotalPrice(0)
-          return
-        }
-        throw new Error("Failed to fetch cart")
-      }
-
-      const data: CartResponse = await res.json()
-      setTotalPrice(data.total_price)
-
-      // Get the quantities from a separate endpoint
-      const itemsRes = await fetch(`http://localhost:8000/cart/${cartId}/items`)
-      let quantities: Record<number, number> = {}
-
-      if (itemsRes.ok) {
-        const itemsData = await itemsRes.json()
-        // Create a map of medicament_id to quantity
-        quantities = itemsData.reduce((acc: Record<number, number>, item: any) => {
-          acc[item.medicament_id] = item.quantity
-          return acc
-        }, {})
-      }
-
-      // Transform the medicaments into CartItem format with proper ID mapping
-      const cartItems: CartItem[] = data.medicaments.map((med) => {
-        return {
-          id: med.id,
-          name: med.name,
-          price: med.price,
-          quantity: quantities[med.id] || 1, // Use quantity from map or default to 1
-          description: "", // These fields would need to come from the API
-          dosage: "",
-        }
-      })
-
-      setCart(cartItems)
-      console.log("Cart data loaded:", cartItems)
-    } catch (error) {
-      console.error("Error fetching cart:", error)
-      alert("Failed to load cart")
-    } finally {
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
       setLoading(false)
     }
   }
@@ -262,17 +196,14 @@ export default function CartPage() {
     }
   }, [])
 
-<<<<<<< HEAD
   // Fetch active cart when component mounts
   useEffect(() => {
     if (patientId) {
       fetchActiveCart()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId])
 
-=======
-  // Replace the updateQuantity function with this improved version
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
   const updateQuantity = async (id: number, quantity: number) => {
     if (quantity < 1) return
 
@@ -284,7 +215,6 @@ export default function CartPage() {
     }
 
     try {
-<<<<<<< HEAD
       console.log(`Updating quantity for item ${id} to ${quantity}`)
 
       // Update local state optimistically first for better UX
@@ -293,10 +223,6 @@ export default function CartPage() {
         console.log("Updated cart:", updatedCart)
         return updatedCart
       })
-=======
-      // Update local state optimistically first for better UX
-      setCart((prevCart) => prevCart.map((item) => (item.id === id ? { ...item, quantity } : item)))
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
 
       // Recalculate total price
       const newTotal = cart.reduce((total, item) => {
@@ -312,13 +238,10 @@ export default function CartPage() {
         }
       })
 
-<<<<<<< HEAD
       if (!cartId) {
         throw new Error("Cart ID not found")
       }
 
-=======
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
       const response = await fetch(`http://localhost:8000/cart/update/${cartId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -332,24 +255,15 @@ export default function CartPage() {
         throw new Error(errorData.detail || "Failed to update cart")
       }
 
-<<<<<<< HEAD
       // Instead of immediately refetching, wait a moment to avoid race conditions
       setTimeout(() => {
         fetchActiveCart()
       }, 300)
-=======
-      // Refresh cart to ensure we have the latest data
-      fetchCart()
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     } catch (error) {
       console.error("Error updating cart:", error)
       alert("Failed to update cart")
       // Revert optimistic update by refetching
-<<<<<<< HEAD
       fetchActiveCart()
-=======
-      fetchCart()
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     }
   }
 
@@ -361,15 +275,12 @@ export default function CartPage() {
       return
     }
 
-<<<<<<< HEAD
     if (!cartId) {
       console.error("Cart ID not found")
       alert("Error: Cart ID not found")
       return
     }
 
-=======
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     try {
       const response = await fetch(`http://localhost:8000/cart/delete/${cartId}/item/${id}`, {
         method: "DELETE",
@@ -391,24 +302,17 @@ export default function CartPage() {
       console.error("Error removing item from cart:", error)
       alert("Failed to remove item from cart")
       // Revert optimistic update
-<<<<<<< HEAD
       fetchActiveCart()
-=======
-      fetchCart()
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     }
   }
 
   const deleteCart = async () => {
-<<<<<<< HEAD
     if (!cartId) {
       console.error("Cart ID not found")
       alert("Error: Cart ID not found")
       return
     }
 
-=======
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     try {
       const response = await fetch(`http://localhost:8000/cart/deleteCart/${cartId}`, {
         method: "DELETE",
@@ -420,15 +324,12 @@ export default function CartPage() {
 
       setCart([])
       setTotalPrice(0)
-<<<<<<< HEAD
       localStorage.removeItem("activeCartId")
 
       // Create a new cart
       if (patientId) {
         getOrCreateActiveCart()
       }
-=======
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
     } catch (error) {
       console.error("Error deleting cart:", error)
       alert("Failed to delete cart")
@@ -506,13 +407,9 @@ export default function CartPage() {
               {!loading && cart.length > 0 && (
                 <Button
                   onClick={() => {
-<<<<<<< HEAD
                     if (cartId) {
                       router.push(`/patient/payment?total=${totalPrice.toFixed(2)}&cartId=${cartId}`)
                     }
-=======
-                    router.push(`/patient/payment?total=${totalPrice.toFixed(2)}`)
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
                   }}
                   className="bg-primary-500 hover:bg-primary-600 text-white"
                 >
@@ -691,13 +588,9 @@ export default function CartPage() {
                         <Button
                           className="w-full mt-6 bg-primary-500 hover:bg-primary-600 text-white"
                           onClick={() => {
-<<<<<<< HEAD
                             if (cartId) {
                               router.push(`/patient/payment?total=${totalPrice.toFixed(2)}&cartId=${cartId}`)
                             }
-=======
-                            router.push(`/patient/payment?total=${totalPrice.toFixed(2)}`)
->>>>>>> 0274cc52ef154bb84005a7696dceebc6730baa57
                           }}
                         >
                           Proceed to Checkout
