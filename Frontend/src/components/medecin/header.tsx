@@ -2,10 +2,30 @@
 
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { LogOut, User, Bell, CheckCircle, XCircle, Calendar, Users } from "lucide-react"
+import {
+  LogOut,
+  User,
+  Bell,
+  CheckCircle,
+  XCircle,
+  Calendar,
+  Users,
+  MessageSquare,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  Stethoscope,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  Home,
+} from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { NotificationBadge } from "@/components/notification-badge"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface UserData {
   photo?: string
@@ -24,13 +44,14 @@ interface DoctorNotification {
 }
 
 export default function HeaderComponent() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showDropdown, setShowDropdown] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
   const router = useRouter()
   const [userData, setUserData] = useState<UserData | null>(null)
   const [notifications, setNotifications] = useState<DoctorNotification[]>([])
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const currentPathRef = useRef<string>("")
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false)
 
   // Function to check for new notifications by comparing appointment statuses
   const checkForNewNotifications = async () => {
@@ -300,12 +321,11 @@ export default function HeaderComponent() {
     return userData.photo.startsWith("http") ? userData.photo : `http://localhost:8000${userData.photo}`
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCalendarClick = () => {
     // Don't automatically mark notifications as read when visiting calendar
     // Just close the dropdowns
     setShowDropdown(false)
-    setShowNotifications(false)
+    setShowNotificationsDropdown(false)
   }
 
   const dismissAllNotifications = () => {
@@ -330,7 +350,7 @@ export default function HeaderComponent() {
         console.error("Error dismissing all notifications:", error)
       }
     }
-    setShowNotifications(false)
+    setShowNotificationsDropdown(false)
   }
 
   const dismissNotification = (appointmentId: number) => {
@@ -381,186 +401,236 @@ export default function HeaderComponent() {
   const unreadNotifications = notifications.length
 
   return (
-    <header className="bg-blue-500 text-white px-4 py-4">
-      <div className="container mx-auto flex items-center">
-        {/* Logo - Left aligned with some right margin */}
-        <Link href="/medecin/dashboard" className="text-white font-bold text-2xl mr-auto">
-          eMedix
-        </Link>
-
-        {/* Notifications */}
-        <div className="relative mr-4">
-          <button
-            className="flex items-center focus:outline-none"
-            onClick={() => setShowNotifications(!showNotifications)}
-          >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors">
-              <Bell className="w-6 h-6 text-white" />
-              {unreadNotifications > 0 && (
-                <div className="absolute -top-1 -right-1">
-                  <NotificationBadge count={unreadNotifications} />
-                </div>
-              )}
+    <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-primary-600 shadow-md">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex h-14 items-center justify-between">
+          {/* Logo */}
+          <Link href="/medecin/dashboard" className="flex items-center">
+            <div className="bg-white text-primary-600 rounded-lg p-2 mr-2">
+              <span className="font-bold text-xl">e</span>
             </div>
-          </button>
+            <span className="font-bold text-xl text-white">Medix</span>
+          </Link>
 
-          {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10 max-h-[80vh] overflow-y-auto isolation-isolate">
-              <div className="p-3 border-b border-gray-200">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
-                  {notifications.length > 0 && (
-                    <button onClick={dismissAllNotifications} className="text-xs text-gray-500 hover:text-gray-700">
-                      Clear all
-                    </button>
-                  )}
-                </div>
-              </div>
+          {/* Navigation Links - Desktop */}
+          
 
-              {notifications.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">No new notifications</div>
-              ) : (
-                <div className="divide-y divide-gray-200">
-                  {notifications.map((notification) => (
-                    <div
-                      key={`${notification.appointmentId}-${notification.timestamp}`}
-                      className={`p-3 ${!notification.read ? "bg-blue-50 border-l-4 border-blue-500" : ""}`}
-                    >
-                      <div className="flex items-start">
-                        <div
-                          className={`flex-shrink-0 rounded-full p-1 ${
-                            notification.type === "confirmed"
-                              ? "bg-green-100"
-                              : notification.type === "cancelled"
-                                ? "bg-red-100"
-                                : notification.type === "new"
-                                  ? "bg-blue-100"
-                                  : "bg-amber-100"
-                          }`}
-                        >
-                          {notification.type === "confirmed" ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : notification.type === "cancelled" ? (
-                            <XCircle className="h-5 w-5 text-red-500" />
-                          ) : notification.type === "new" ? (
-                            <Calendar className="h-5 w-5 text-blue-500" />
-                          ) : (
-                            <Calendar className="h-5 w-5 text-amber-500" />
-                          )}
-                        </div>
-                        <div className="ml-3 flex-1">
-                          <div className="flex items-center">
-                            <p className="text-sm font-medium text-gray-900">
-                              {notification.type === "confirmed"
-                                ? "Appointment Confirmed"
-                                : notification.type === "cancelled"
-                                  ? "Appointment Cancelled"
-                                  : notification.type === "new"
-                                    ? "New Appointment"
-                                    : "Appointment Modified"}
-                            </p>
-                            {!notification.read && (
-                              <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-600"></span>
-                            )}
-                          </div>
-                          <p className="mt-1 text-sm text-gray-500">
-                            {new Date(notification.timestamp).toLocaleString()}
-                          </p>
-                          <div className="mt-2 flex space-x-2">
-                            <button
-                              onClick={() => {
-                                // Navigate to calendar with the appointment date
-                                const appointmentDate = new Date(notification.appointmentDate)
-                                const formattedDate = `${appointmentDate.getFullYear()}-${String(appointmentDate.getMonth() + 1).padStart(2, "0")}-${String(appointmentDate.getDate()).padStart(2, "0")}`
+          {/* User Profile */}
+          <div className="flex items-center gap-4">
+            {/* Notifications */}
+            {unreadNotifications > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
+                  className="relative p-2 rounded-full hover:bg-primary-400 transition-colors"
+                >
+                  <Bell className="h-5 w-5 text-white" />
+                  <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-medium text-primary-600">
+                    {unreadNotifications}
+                  </span>
+                </button>
 
-                                // Store the highlighted appointment ID in localStorage
-                                localStorage.setItem("highlightedAppointmentId", notification.appointmentId.toString())
-
-                                // Navigate to calendar with date parameter - use the correct path
-                                // Use window.location.href instead of router.push to ensure a full page reload
-                                window.location.href = `/medecin/Calendar?date=${formattedDate}&highlight=${notification.appointmentId}`
-
-                                // Mark this notification as read but don't dismiss it
-                                markNotificationAsRead(notification.appointmentId)
-                                setShowNotifications(false)
-                              }}
-                              className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded"
-                            >
-                              View Appointment
-                            </button>
-                            <button
-                              onClick={() => dismissNotification(notification.appointmentId)}
-                              className="text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              Dismiss
-                            </button>
-                          </div>
-                        </div>
+                {showNotificationsDropdown && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10 max-h-[80vh] overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={dismissAllNotifications}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Clear all
+                          </button>
+                        )}
                       </div>
                     </div>
-                  ))}
+
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">No new notifications</div>
+                    ) : (
+                      <div className="divide-y divide-gray-200">
+                        {notifications.map((notification) => (
+                          <div
+                            key={`${notification.appointmentId}-${notification.timestamp}`}
+                            className={`p-3 ${!notification.read ? "bg-blue-50 border-l-4 border-blue-500" : ""}`}
+                          >
+                            <div className="flex items-start">
+                              <div
+                                className={`flex-shrink-0 rounded-full p-1 ${
+                                  notification.type === "confirmed"
+                                    ? "bg-green-100"
+                                    : notification.type === "cancelled"
+                                      ? "bg-red-100"
+                                      : notification.type === "new"
+                                        ? "bg-blue-100"
+                                        : "bg-amber-100"
+                                }`}
+                              >
+                                {notification.type === "confirmed" ? (
+                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                                ) : notification.type === "cancelled" ? (
+                                  <XCircle className="h-5 w-5 text-red-500" />
+                                ) : notification.type === "new" ? (
+                                  <Calendar className="h-5 w-5 text-blue-500" />
+                                ) : (
+                                  <Calendar className="h-5 w-5 text-amber-500" />
+                                )}
+                              </div>
+                              <div className="ml-3 flex-1">
+                                <div className="flex items-center">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {notification.type === "confirmed"
+                                      ? "Appointment Confirmed"
+                                      : notification.type === "cancelled"
+                                        ? "Appointment Cancelled"
+                                        : notification.type === "new"
+                                          ? "New Appointment"
+                                          : "Appointment Modified"}
+                                  </p>
+                                  {!notification.read && (
+                                    <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-600"></span>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  {new Date(notification.timestamp).toLocaleString()}
+                                </p>
+                                <div className="mt-2 flex space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      // Navigate to calendar with the appointment date
+                                      const appointmentDate = new Date(notification.appointmentDate)
+                                      const formattedDate = `${appointmentDate.getFullYear()}-${String(
+                                        appointmentDate.getMonth() + 1,
+                                      ).padStart(2, "0")}-${String(appointmentDate.getDate()).padStart(2, "0")}`
+
+                                      // Store the highlighted appointment ID in localStorage
+                                      localStorage.setItem(
+                                        "highlightedAppointmentId",
+                                        notification.appointmentId.toString(),
+                                      )
+
+                                      // Navigate to calendar with date parameter - use the correct path
+                                      // Use window.location.href instead of router.push to ensure a full page reload
+                                      window.location.href = `/medecin/Calendar?date=${formattedDate}&highlight=${notification.appointmentId}`
+
+                                      // Mark this notification as read but don't dismiss it
+                                      markNotificationAsRead(notification.appointmentId)
+                                      setShowNotificationsDropdown(false)
+                                    }}
+                                    className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded"
+                                  >
+                                    View Appointment
+                                  </button>
+                                  <button
+                                    onClick={() => dismissNotification(notification.appointmentId)}
+                                    className="text-xs text-gray-500 hover:text-gray-700"
+                                  >
+                                    Dismiss
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="p-3 border-t border-gray-200"></div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* User Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary-400">
+                  <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white flex items-center justify-center bg-primary-400">
+                    {userData && userData.photo ? (
+                      <Image
+                        src={getPhotoUrl() || "/placeholder.svg"}
+                        alt={`${userData.prenom} ${userData.nom}`}
+                        width={40}
+                        height={40}
+                        className="object-cover w-full h-full"
+                        unoptimized
+                      />
+                    ) : (
+                      <User className="h-5 w-5 text-white" />
+                    )}
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-white border border-neutral-200 shadow-lg">
+                {userData && (
+                  <div className="rounded-full flex items-center gap-2 p-4 border-b border-neutral-100">
+                    <div className="rounded-full flex h-10 w-10 items-center justify-center bg-primary-100">
+                      {userData.photo ? (
+                        <Image
+                          src={getPhotoUrl() || "/placeholder.svg"}
+                          alt={`${userData.prenom} ${userData.nom}`}
+                          width={70}
+                          height={70}
+                          className="rounded-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <User className="h-4 w-4 text-primary-500" />
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-0.5">
+                      <p className="text-sm font-medium text-neutral-900">{`${userData.prenom} ${userData.nom}`}</p>
+                      <p className="text-xs text-neutral-500">Doctor</p>
+                    </div>
+                  </div>
+                )}
+                <div className="p-1">
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link href="/medecin/profile" className="flex cursor-pointer items-center px-3 py-2">
+                      <User className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link
+                      href="/medecin/Calendar"
+                      className="flex cursor-pointer items-center px-3 py-2"
+                      onClick={handleCalendarClick}
+                    >
+                      <Calendar className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">Calendar</span>
+                      {unreadNotifications > 0 && (
+                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-[10px] font-medium text-white">
+                          {unreadNotifications}
+                        </span>
+                      )}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link href="/medecin/patientlist" className="flex cursor-pointer items-center px-3 py-2">
+                      <Users className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">My Patients</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link href="/medecin/chat" className="flex cursor-pointer items-center px-3 py-2">
+                      <MessageSquare className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">Chat with Patients</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1 bg-neutral-200" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer rounded-md text-red-600 focus:bg-red-50 focus:text-red-600 px-3 py-2"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
                 </div>
-              )}
-
-              <div className="p-3 border-t border-gray-200"></div>
-            </div>
-          )}
-        </div>
-
-        {/* User Profile - Far right */}
-        <div className="relative">
-          <button className="flex items-center focus:outline-none" onClick={() => setShowDropdown(!showDropdown)}>
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white flex items-center justify-center bg-blue-400">
-              {userData && userData.photo ? (
-                <Image
-                  src={getPhotoUrl() || "/placeholder.svg"}
-                  alt={`${userData.prenom} ${userData.nom}`}
-                  width={40}
-                  height={40}
-                  className="object-cover w-full h-full"
-                  unoptimized
-                />
-              ) : (
-                <User className="w-6 h-6 text-white" />
-              )}
-            </div>
-          </button>
-
-          {showDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-              <Link
-                href="/medecin/Calendar"
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                onClick={() => setShowDropdown(false)}
-              >
-                <Calendar className="w-4 h-4 mr-2" />
-                Calendar
-              </Link>
-              <Link
-                href="/medecin/patientlist"
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                onClick={() => setShowDropdown(false)}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                My Patients
-              </Link>
-              <Link
-                href="/medecin/profile"
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                onClick={() => setShowDropdown(false)}
-              >
-                <User className="w-4 h-4 mr-2" />
-                Profile
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </button>
-            </div>
-          )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

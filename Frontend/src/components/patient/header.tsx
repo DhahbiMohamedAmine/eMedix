@@ -2,7 +2,18 @@
 
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
-import { LogOut, User, Clock, Calendar, ShoppingCart, Home, PillIcon as Pills, Stethoscope, Bell } from "lucide-react"
+import {
+  LogOut,
+  User,
+  Clock,
+  Calendar,
+  ShoppingCart,
+  Home,
+  PillIcon as Pills,
+  Stethoscope,
+  Bell,
+  MessageSquare,
+} from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -427,6 +438,12 @@ export default function HeaderComponent() {
                     <Link href="/patient/appointment-history" className="flex cursor-pointer items-center px-3 py-2">
                       <Clock className="mr-2 h-4 w-4 text-primary-500" />
                       <span className="text-neutral-800">Appointment History</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md focus:bg-primary-50">
+                    <Link href="/patient/chat" className="flex cursor-pointer items-center px-3 py-2">
+                      <MessageSquare className="mr-2 h-4 w-4 text-primary-500" />
+                      <span className="text-neutral-800">Chat with Doctors</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-1 bg-neutral-200" />

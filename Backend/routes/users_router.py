@@ -1,12 +1,16 @@
 import asyncio
+import logging
 import os
+from pydoc import text
 import shutil
 from typing import Optional
 from uuid import uuid4
 import bcrypt
-from fastapi import APIRouter, File, Form, HTTPException, Depends, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Depends, UploadFile, logger
+from sqlalchemy import distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from models.appointments import Appointment as AppointmentModel
 from models.patients import Patient as PatientModel
 from models.users import User as UserModel
 from models.medecins import Medecin as MedcineModel
@@ -283,4 +287,90 @@ async def get_all_medecins(db: AsyncSession = Depends(get_db)):
         print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving medecins: {str(e)}")
 
+from sqlalchemy.orm import joinedload
+@router.get("/doctors/patient/{patient_id}")
+async def get_doctors_by_patient(
+    patient_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Obtenir les identifiants uniques des médecins
+        query = (
+            select(AppointmentModel.medecin_id)
+            .where(AppointmentModel.patient_id == patient_id)
+            .distinct()
+        )
+        result = await db.execute(query)
+        doctor_ids = [row[0] for row in result.fetchall()]
 
+        if not doctor_ids:
+            raise HTTPException(status_code=404, detail="No doctors found for this patient")
+
+        # Rechercher les médecins avec les infos de leur compte utilisateur
+        doctors_query = (
+            select(MedcineModel)
+            .where(MedcineModel.id.in_(doctor_ids))
+            .options(joinedload(MedcineModel.user))
+        )
+        doctors_result = await db.execute(doctors_query)
+        doctors = doctors_result.scalars().all()
+
+        return {"doctors": [
+            {
+                "id": doc.id,
+                "nom": doc.user.nom,
+                "prenom": doc.user.prenom,
+                "email": doc.user.email,
+                "photo": doc.user.photo,
+                "ville": doc.ville,
+                "grade": doc.grade,
+            }
+            for doc in doctors
+        ]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving doctors: {e}")
+    
+
+
+@router.get("/patients/doctor/{medecin_id}")
+async def get_patients_by_doctor(
+    medecin_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Get unique patient IDs for appointments with this doctor
+        query = (
+            select(AppointmentModel.patient_id)
+            .where(AppointmentModel.medecin_id == medecin_id)
+            .distinct()
+        )
+        result = await db.execute(query)
+        patient_ids = [row[0] for row in result.fetchall()]
+
+        if not patient_ids:
+            raise HTTPException(status_code=404, detail="No patients found for this doctor")
+
+        # Fetch patients with their user info
+        patients_query = (
+            select(PatientModel)
+            .where(PatientModel.id.in_(patient_ids))
+            .options(joinedload(PatientModel.user))
+        )
+        patients_result = await db.execute(patients_query)
+        patients = patients_result.scalars().all()
+
+        return {"patients": [
+            {
+                "id": patient.id,
+                "nom": patient.user.nom,
+                "prenom": patient.user.prenom,
+                "email": patient.user.email,
+                "photo": patient.user.photo,
+                "telephone": patient.user.telephone,
+            }
+            for patient in patients
+        ]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving patients: {e}")

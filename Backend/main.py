@@ -27,7 +27,7 @@ app.include_router(stats_router, prefix="/stats", tags=["stats"])
 
 app.include_router(billing_router, prefix="/billing", tags=["billing"])
 app.include_router(cart_router, prefix="/cart", tags=["Cart"])
-app.include_router(message_router,prefix="/chat", tags=["chat"])
+app.include_router(message_router, tags=["chat"])
 app.include_router(payment_router,prefix="/payment", tags=["payment"])
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
