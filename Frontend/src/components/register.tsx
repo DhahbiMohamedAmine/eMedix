@@ -5,9 +5,10 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { toast } from "@/components/ui/use-toast"
 
 export default function Register() {
-  const [role, setRole] = useState<"patient" | "medecin" | "admin">("patient")
+  const [role, setRole] = useState<"patient" | "medecin">("patient")
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -35,7 +36,7 @@ export default function Register() {
     }))
   }
 
-  const handleRoleChange = (selectedRole: "patient" | "medecin" | "admin") => {
+  const handleRoleChange = (selectedRole: "patient" | "medecin") => {
     setRole(selectedRole)
   }
 
@@ -55,8 +56,6 @@ export default function Register() {
       formDataToSend.append("telephone", formData.telephone)
       formDataToSend.append("email", formData.email)
       formDataToSend.append("password", formData.password)
-      formDataToSend.append("role", role)
-      formDataToSend.append("isverified", "false")
 
       // Add photo if it exists and is a File
       if (formData.photo) {
@@ -66,6 +65,12 @@ export default function Register() {
           formDataToSend.append("photo", formData.photo)
         }
       }
+
+      // Determine the endpoint based on role
+      const endpoint =
+        role === "patient"
+          ? "http://localhost:8000/auth/register/patient"
+          : "http://localhost:8000/auth/register/doctor"
 
       // Add role-specific fields
       if (role === "patient") {
@@ -88,7 +93,7 @@ export default function Register() {
       }
 
       // Make API call to backend
-      const response = await fetch("http://localhost:8000/auth/register", {
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formDataToSend, // Send FormData instead of JSON
       })
@@ -98,8 +103,13 @@ export default function Register() {
         throw new Error(errorData.detail || "Registration failed")
       }
 
-      await response.json()
-      setSuccess("Registration successful! Please check your email for verification.")
+      const data = await response.json()
+      setSuccess(
+        data.message ||
+          (role === "patient"
+            ? "Registration successful! Please check your email for verification."
+            : "Registration submitted successfully. An administrator will review your application."),
+      )
 
       // Reset form after successful submission
       setFormData({
@@ -115,9 +125,21 @@ export default function Register() {
         grade: "",
         ville: "",
       })
+
+      toast({
+        title: "Registration Submitted",
+        description: data.message,
+        variant: "default",
+      })
     } catch (error) {
       console.error("Registration error:", error)
       setError(error instanceof Error ? error.message : "An unexpected error occurred")
+
+      toast({
+        title: "Registration Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -180,6 +202,15 @@ export default function Register() {
                 >
                   Doctor
                 </button>
+              </div>
+
+              {/* Role-specific information message */}
+              <div className="mt-2 text-sm text-gray-600">
+                {role === "patient" ? (
+                  <p>Patients need to verify their email after registration.</p>
+                ) : (
+                  <p>Doctor registrations require admin approval before account activation.</p>
+                )}
               </div>
             </div>
 

@@ -2,8 +2,8 @@
 
 import type React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { LayoutDashboard, Receipt, Bell, LogOut, Package, UserRound } from "lucide-react"
+import { useRouter, usePathname } from "next/navigation"
+import { LayoutDashboard, UserCog, Users, LogOut, Package, FileCheck } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { useDictionary } from "@/components/admin/dictionary-provider"
 
@@ -13,8 +13,16 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen }: SidebarProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { dir } = useLanguage()
   const dictionary = useDictionary()
+
+  // Function to check if a path is active
+  const isActive = (path: string) => {
+    // Extract the main path segment for comparison
+    const currentPath = pathname?.split("/").filter(Boolean)[1] || "dashboard"
+    return currentPath === path
+  }
 
   const handleLogout = () => {
     // Here you would typically clear authentication tokens/cookies
@@ -38,10 +46,30 @@ export function Sidebar({ isOpen }: SidebarProps) {
         </div>
       </div>
       <nav className="p-4 space-y-1">
-        <SidebarLink href="dashboard" icon={<LayoutDashboard />} text={dictionary.dashboard.dashboard} active />
-        <SidebarLink href="doctors" icon={<Receipt />} text={dictionary.dashboard.doctors} />
-        <SidebarLink href="patients" icon={<UserRound />} text={dictionary.dashboard.patients} />
-        <SidebarLink href="confirmations" icon={<Bell />} text={dictionary.dashboard.confirmations} />
+        <SidebarLink
+          href="/admin/dashboard"
+          icon={<LayoutDashboard />}
+          text={dictionary.dashboard.dashboard}
+          active={isActive("dashboard")}
+        />
+        <SidebarLink
+          href="/admin/doctors"
+          icon={<UserCog />}
+          text={dictionary.dashboard.doctors}
+          active={isActive("doctors")}
+        />
+        <SidebarLink
+          href="/admin/patients"
+          icon={<Users />}
+          text={dictionary.dashboard.patients}
+          active={isActive("patients")}
+        />
+        <SidebarLink
+          href="/admin/confirmations"
+          icon={<FileCheck />}
+          text={dictionary.dashboard.confirmations}
+          active={isActive("confirmations")}
+        />
 
         {/* Logout button */}
         <button

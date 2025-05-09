@@ -66,6 +66,37 @@
     "patientsByAge": {
       "title": "Patients By Age",
       "subtitle": "Age distribution of patients"
-    }
+    },
+    "filters": "Filters",
+    "actions": "Actions",
+    "selectGrade": "Select Grade",
+    "selectCity": "Select City",
+    "totalDoctors": "Total Doctors",
+    "registeredDoctors": "Registered Doctors",
+    "doctorApplications": "Doctor Applications",
+    "reviewManage": "Review and manage pending doctor applications",
+    "pendingDoctorApplications": "Pending Doctor Applications",
+    "reviewApprove": "Review and approve doctor registration applications",
+    "noPendingApplications": "No pending applications",
+    "noApplicationsWaiting": "There are no doctor applications waiting for approval at this time",
+    "showingApplications": "Showing {0} applications",
+    "table": "Table",
+    "grid": "Grid",
+    "export": "Export",
+    "allGrades": "All Grades",
+    "allCities": "All Cities",
+    "sortByName": "Sort by Name",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "pending": "Pending",
+    "viewDetails": "View Details",
+    "contact": "Contact",
+    "qualifications": "Qualifications",
+    "location": "Location",
+    "overview": "Overview",
+    "contactDetails": "Contact Details",
+    "rejectApplication": "Reject Application",
+    "approveDoctor": "Approve Doctor",
+    "processing": "Processing..."
   }
 }

@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 import os
 from Dto.logindto import LoginRequest, ResetPasswordRequest, ResetPassword
 from dotenv import load_dotenv
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 import smtplib
 import bcrypt
@@ -18,9 +18,8 @@ from models.patients import Patient
 from models.medecins import Medecin
 from models.admins import Admin
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from Dto.userdto import UserRequest
-from models.users import User
 import shutil
 from uuid import uuid4
 from google.oauth2 import id_token
@@ -39,30 +38,30 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # JWT token generation for email verification
 def generate_verification_token(email: str) -> str:
     secret_key = os.getenv("SECRET_KEY")
-    expiration_time = datetime.utcnow() + timedelta(hours=1)  # Corrected this line
+    expiration_time = datetime.utcnow() + timedelta(hours=1)
     token = jwt.encode({"sub": email, "exp": expiration_time}, secret_key, algorithm="HS256")
     return token
 
+def generate_jwt_token(email: str) -> str:
+    secret_key = os.getenv("SECRET_KEY")
+    expiration_time = datetime.utcnow() + timedelta(hours=1)  # Token will expire in 1 hour
+    token = jwt.encode({"sub": email, "exp": expiration_time}, secret_key, algorithm="HS256")
+    return token
 
-from datetime import datetime
-
-@router.post("/register/")
-async def register(
+@router.post("/register/patient")
+async def register_patient(
     nom: str = Form(...),
     prenom: str = Form(...),
     telephone: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
-    role: str = Form(...),
-    isverified: bool = Form(False),
     photo: Optional[UploadFile] = File(None),
-    date_naissance: Optional[str] = Form(None),
-    adresse: Optional[str] = Form(None),
-    diplome: Optional[str] = Form(None),
-    grade: Optional[str] = Form(None),
-    ville: Optional[str] = Form(None),
+    date_naissance: str = Form(...),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Register a new patient. Patients need to verify their email to activate their account.
+    """
     # Handle file upload if photo is provided
     photo_path = None
     if photo:
@@ -92,8 +91,8 @@ async def register(
         telephone=telephone,
         email=email,
         password=hashed_password,
-        role=role,
-        isverified=isverified,  # Default is False
+        role="patient",
+        isverified=False,  # Default is False for patients until they verify email
         photo=photo_path
     )
 
@@ -105,59 +104,250 @@ async def register(
         await db.rollback()  # Rollback if something goes wrong
         raise HTTPException(status_code=500, detail=f"Failed to add user: {str(e)}")
 
-    # Create Role-specific entry based on the user's role
-    if role == 'patient':
-        if not date_naissance:
-            raise HTTPException(status_code=400, detail="Date of birth is required for patients")
-        
-        # Convert the date_naissance to a datetime.date object
-        try:
-            date_naissance_obj = datetime.strptime(date_naissance, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-        
-        # Create patient details
-        patient = Patient(user_id=db_user.id, date_naissance=date_naissance_obj)
-        try:
-            db.add(patient)
-            await db.commit()  # Async commit for patient
-        except Exception as e:
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to add patient details: {str(e)}")
-    elif role == 'medecin':
-        if not (adresse and diplome and grade and ville):
-            raise HTTPException(status_code=400, detail="All medical details are required for medecin")
-        medecin = Medecin(
-            user_id=db_user.id,
-            adresse=adresse,
-            diplome=diplome,
-            grade=grade,
-            ville=ville
-        )
-        try:
-            db.add(medecin)
-            await db.commit()  # Async commit for medecin
-        except Exception as e:
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to add medecin details: {str(e)}")
-    elif role == 'admin':
-        admin = Admin(user_id=db_user.id)
-        try:
-            db.add(admin)
-            await db.commit()  # Async commit for admin
-        except Exception as e:
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to add admin details: {str(e)}")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid role")
+    # Convert the date_naissance to a datetime.date object
+    try:
+        date_naissance_obj = datetime.strptime(date_naissance, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    
+    # Create patient details
+    patient = Patient(user_id=db_user.id, date_naissance=date_naissance_obj)
+    try:
+        db.add(patient)
+        await db.commit()  # Async commit for patient
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to add patient details: {str(e)}")
 
+    # Generate verification token and send email
     token = generate_verification_token(email)
-
-    # Send verification email
     send_verification_email(email, token)
-    return {"message": "User registered successfully"}
+    
+    return {"message": "Patient registered successfully. Please check your email for verification."}
 
+@router.post("/register/doctor")
+async def register_doctor(
+    nom: str = Form(...),
+    prenom: str = Form(...),
+    telephone: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    adresse: str = Form(...),
+    diplome: str = Form(...),
+    grade: str = Form(...),
+    ville: str = Form(...),
+    photo: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Register a new doctor. Doctors need to be approved by an admin.
+    """
+    # Handle file upload if photo is provided
+    photo_path = None
+    if photo:
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join("static", "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = os.path.splitext(photo.filename)[1]
+        unique_filename = f"{uuid4()}{file_extension}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save the file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+        
+        # Store the relative path to be saved in the database
+        photo_path = f"/static/uploads/{unique_filename}"
+    
+    # Hash the password
+    hashed_password = hash_password(password)
 
+    # Create the user record in the database
+    db_user = User(
+        nom=nom,
+        prenom=prenom,
+        telephone=telephone,
+        email=email,
+        password=hashed_password,
+        role="medecin",
+        isverified=False,  # Default is False until admin approves
+        photo=photo_path
+    )
+
+    try:
+        db.add(db_user)
+        await db.commit()
+        await db.refresh(db_user)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to add user: {str(e)}")
+
+    # Create doctor details
+    medecin = Medecin(
+        user_id=db_user.id,
+        adresse=adresse,
+        diplome=diplome,
+        grade=grade,
+        ville=ville
+    )
+    
+    try:
+        db.add(medecin)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to add doctor details: {str(e)}")
+
+    return {"message": "Doctor registration submitted successfully. An administrator will review your application."}
+
+# Admin endpoints for doctor approval
+class DoctorApprovalRequest(BaseModel):
+    doctor_id: int
+    approved: bool
+
+@router.get("/admin/pending-doctors")
+async def get_pending_doctors(db: AsyncSession = Depends(get_db)):
+    """
+    Get all doctors pending approval
+    """
+    try:
+        # Query for users with role 'medecin' and isverified=False
+        result = await db.execute(
+            select(User, Medecin)
+            .join(Medecin, User.id == Medecin.user_id)
+            .where(User.role == "medecin", User.isverified == False)
+        )
+        
+        doctors = []
+        for user, medecin in result.fetchall():
+            doctors.append({
+                "id": user.id,
+                "nom": user.nom,
+                "prenom": user.prenom,
+                "email": user.email,
+                "telephone": user.telephone,
+                "photo": user.photo,
+                "medecin_id": medecin.id,
+                "adresse": medecin.adresse,
+                "diplome": medecin.diplome,
+                "grade": medecin.grade,
+                "ville": medecin.ville
+            })
+        
+        return doctors
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch pending doctors: {str(e)}")
+
+@router.post("/admin/approve-doctor")
+async def approve_doctor(request: DoctorApprovalRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Approve or reject a doctor
+    """
+    try:
+        # Find the user
+        result = await db.execute(select(User).where(User.id == request.doctor_id))
+        user = result.scalars().first()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+        
+        if user.role != "medecin":
+            raise HTTPException(status_code=400, detail="User is not a doctor")
+        
+        # Update the user's verification status
+        user.isverified = request.approved
+        db.add(user)
+        await db.commit()
+        
+        # Send notification email to the doctor
+        if request.approved:
+            send_approval_email(user.email)
+        else:
+            send_rejection_email(user.email)
+        
+        return {"message": f"Doctor {request.approved and 'approved' or 'rejected'} successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update doctor status: {str(e)}")
+
+def send_approval_email(to_email: str):
+    sender_email = os.getenv("EMAIL_SENDER")
+    sender_password = os.getenv("EMAIL_PASSWORD")
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT"))
+
+    subject = "Doctor Registration Approved"
+    body = "Congratulations! Your doctor registration has been approved. You can now log in to your account."
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, msg.as_string())
+        print(f"Approval email sent to {to_email}")
+    except Exception as e:
+        print(f"Failed to send approval email: {e}")
+
+def send_rejection_email(to_email: str):
+    sender_email = os.getenv("EMAIL_SENDER")
+    sender_password = os.getenv("EMAIL_PASSWORD")
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT"))
+
+    subject = "Doctor Registration Not Approved"
+    body = "We regret to inform you that your doctor registration application has not been approved at this time."
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, msg.as_string())
+        print(f"Rejection email sent to {to_email}")
+    except Exception as e:
+        print(f"Failed to send rejection email: {e}")
+
+def send_verification_email(to_email: str, token: str):
+    sender_email = os.getenv("EMAIL_SENDER")
+    sender_password = os.getenv("EMAIL_PASSWORD")
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT"))
+
+    if not sender_email or not sender_password:
+        raise HTTPException(status_code=500, detail="Email credentials are not set in .env")
+
+    subject = "Email Verification"
+    body = f"Click on the following link to verify your email: http://localhost:8000/auth/verify/{token}"
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()  # Secure the connection
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, msg.as_string())
+        print(f"Verification email sent to {to_email}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {e}")
 
 @router.get("/verify/{token}")
 async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
@@ -194,41 +384,8 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
-
-def send_verification_email(to_email: str, token: str):
-    sender_email = os.getenv("EMAIL_SENDER")
-    sender_password = os.getenv("EMAIL_PASSWORD")
-    smtp_server = os.getenv("SMTP_SERVER")
-    smtp_port = int(os.getenv("SMTP_PORT"))
-
-    if not sender_email or not sender_password:
-        raise HTTPException(status_code=500, detail="Email credentials are not set in .env")
-
-    subject = "Email Verification"
-    body = f"Click on the following link to verify your email: http://localhost:8000/auth/verify/{token}"
-
-    msg = MIMEMultipart()
-    msg["From"] = sender_email
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
-
-    try:
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()  # Secure the connection
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, to_email, msg.as_string())
-        print(f"Verification email sent to {to_email}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {e}")
-
-
-def generate_jwt_token(email: str) -> str:
-    secret_key = os.getenv("SECRET_KEY")
-    expiration_time = datetime.utcnow() + timedelta(hours=1)  # Token will expire in 1 hour
-    token = jwt.encode({"sub": email, "exp": expiration_time}, secret_key, algorithm="HS256")
-    return token
+# Keep the rest of your existing functions (login, reset password, etc.)
+# ...
 
 from sqlalchemy.orm import joinedload
 
@@ -385,51 +542,3 @@ async def reset_password(data: ResetPassword, db: AsyncSession = Depends(get_db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-
-@router.post("/google")
-async def google_auth(token: str = Body(...), db: AsyncSession = Depends(get_db)):
-    try:
-        # Verify the Google token
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), GOOGLE_CLIENT_ID)
-
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            raise ValueError('Wrong issuer.')
-
-        # Extract user info from the token
-        user_email = idinfo['email']
-        user_name = idinfo['name']
-        
-        # Check if user exists
-        result = await db.execute(select(User).filter(User.email == user_email))
-        user = result.scalars().first()
-
-        if not user:
-            # Create new user
-            user = User(
-                email=user_email,
-                nom=user_name.split()[0] if len(user_name.split()) > 1 else user_name,
-                prenom=user_name.split()[1] if len(user_name.split()) > 1 else "",
-                role='patient',
-                isverified=True ,
-                telephone = 23117094, # Google accounts are considered verified
-                date_naissance = "2003-06-24"
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-
-            # Create patient record
-            patient = Patient(user_id=user.id)
-            db.add(patient)
-            await db.commit()
-
-        # Generate JWT token for the user
-        access_token = generate_jwt_token(user_email)
-
-        return {"access_token": access_token, "token_type": "bearer"}
-
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

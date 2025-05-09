@@ -66,6 +66,37 @@
     "patientsByAge": {
       "title": "Patients Par Âge",
       "subtitle": "Distribution des patients par âge"
-    }
+    },
+    "filters": "Filtres",
+    "actions": "Actions",
+    "selectGrade": "Sélectionner Grade",
+    "selectCity": "Sélectionner Ville",
+    "totalDoctors": "Total des Médecins",
+    "registeredDoctors": "Médecins Enregistrés",
+    "doctorApplications": "Candidatures de Médecins",
+    "reviewManage": "Examiner et gérer les candidatures de médecins en attente",
+    "pendingDoctorApplications": "Candidatures de Médecins en Attente",
+    "reviewApprove": "Examiner et approuver les candidatures d'inscription des médecins",
+    "noPendingApplications": "Aucune candidature en attente",
+    "noApplicationsWaiting": "Il n'y a pas de candidatures de médecins en attente d'approbation pour le moment",
+    "showingApplications": "Affichage de {0} candidatures",
+    "table": "Tableau",
+    "grid": "Grille",
+    "export": "Exporter",
+    "allGrades": "Tous les Grades",
+    "allCities": "Toutes les Villes",
+    "sortByName": "Trier par Nom",
+    "ascending": "Ascendant",
+    "descending": "Descendant",
+    "pending": "En attente",
+    "viewDetails": "Voir les Détails",
+    "contact": "Contact",
+    "qualifications": "Qualifications",
+    "location": "Emplacement",
+    "overview": "Aperçu",
+    "contactDetails": "Coordonnées",
+    "rejectApplication": "Rejeter la Candidature",
+    "approveDoctor": "Approuver le Médecin",
+    "processing": "Traitement en cours..."
   }
 }

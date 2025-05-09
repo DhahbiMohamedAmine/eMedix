@@ -66,6 +66,37 @@
     "patientsByAge": {
       "title": "المرضى حسب العمر",
       "subtitle": "توزيع المرضى حسب الفئة العمرية"
-    }
+    },
+    "filters": "تصفية",
+    "actions": "إجراءات",
+    "selectGrade": "اختر الدرجة",
+    "selectCity": "اختر المدينة",
+    "totalDoctors": "إجمالي الأطباء",
+    "registeredDoctors": "الأطباء المسجلين",
+    "doctorApplications": "طلبات الأطباء",
+    "reviewManage": "مراجعة وإدارة طلبات الأطباء المعلقة",
+    "pendingDoctorApplications": "طلبات الأطباء المعلقة",
+    "reviewApprove": "مراجعة والموافقة على طلبات تسجيل الأطباء",
+    "noPendingApplications": "لا توجد طلبات معلقة",
+    "noApplicationsWaiting": "لا توجد طلبات أطباء في انتظار الموافقة في الوقت الحالي",
+    "showingApplications": "عرض {0} طلبات",
+    "table": "جدول",
+    "grid": "شبكة",
+    "export": "تصدير",
+    "allGrades": "جميع الدرجات",
+    "allCities": "جميع المدن",
+    "sortByName": "ترتيب حسب الاسم",
+    "ascending": "تصاعدي",
+    "descending": "تنازلي",
+    "pending": "معلق",
+    "viewDetails": "عرض التفاصيل",
+    "contact": "معلومات الاتصال",
+    "qualifications": "المؤهلات",
+    "location": "الموقع",
+    "overview": "نظرة عامة",
+    "contactDetails": "تفاصيل الاتصال",
+    "rejectApplication": "رفض الطلب",
+    "approveDoctor": "الموافقة على الطبيب",
+    "processing": "جاري المعالجة..."
   }
 }
