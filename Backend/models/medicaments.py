@@ -10,6 +10,7 @@ class Medicament(Base):
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=True)
     price = Column(Float, nullable=True)
+    image = Column(String(255), nullable=True)
     dosage = Column(String(100), nullable=False)
     duration = Column(String(100), nullable=False)
     stock= Column(Integer, nullable=False)

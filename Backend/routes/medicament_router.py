@@ -48,12 +48,16 @@ async def update_medicament_price(
     medicament.price = medicament_data.price
     medicament.dosage = medicament_data.dosage
     medicament.duration = medicament_data.duration
-    medicament.stock = medicament_data.stock 
+    medicament.stock = medicament_data.stock
+    
+    if medicament_data.image is not None:
+        medicament.image = medicament_data.image
 
     db.add(medicament)
     await db.commit()
     await db.refresh(medicament)
     return medicament
+
 
 
 @router.delete("/{medicament_id}")

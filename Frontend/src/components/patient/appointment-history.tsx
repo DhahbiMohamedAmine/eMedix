@@ -4,7 +4,7 @@ import Image from "next/image"
 import Header from "@/components/patient/header"
 import Footer from "@/components/footer"
 import { Calendar, Clock, MapPin, FileText } from "lucide-react"
-import PrescriptionDetails from "@/components/medecin/prescription-details" // Import the PrescriptionDetails component
+import PrescriptionDetails from "@/components/patient/prescription-details" // Import the PrescriptionDetails component
 
 interface Appointment {
   id: number

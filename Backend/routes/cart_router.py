@@ -301,3 +301,103 @@ async def reset_cart_payment(cart_id: int, db: AsyncSession = Depends(get_db)):
         "cart_id": cart.id,
         "is_paid": cart.is_paid
     }
+# POST - Add multiple items to cart at once
+@router.post("/addMany", response_model=CartOut)
+async def add_many_to_cart(request: dict, db: AsyncSession = Depends(get_db)):
+    """
+    Add multiple medications to a cart at once.
+    
+    Request format:
+    {
+        "patient_id": int,
+        "items": [
+            {"medicament_id": int, "quantity": int},
+            {"medicament_id": int, "quantity": int},
+            ...
+        ]
+    }
+    """
+    patient_id = request.get("patient_id")
+    items = request.get("items", [])
+    
+    if not patient_id:
+        raise HTTPException(status_code=400, detail="Patient ID is required")
+    
+    if not items:
+        raise HTTPException(status_code=400, detail="No items provided")
+    
+    # Find or create an active cart for this patient
+    result = await db.execute(
+        select(Cart).where(Cart.patient_id == patient_id, Cart.is_paid == False)
+    )
+    cart = result.scalars().first()
+
+    if not cart:
+        cart = Cart(patient_id=patient_id, total_price=0.0, is_paid=False)
+        db.add(cart)
+        await db.flush()
+
+    total_price = 0.0
+    
+    # Process each medication
+    for item in items:
+        medicament_id = item.get("medicament_id")
+        quantity = item.get("quantity", 1)
+        
+        if not medicament_id:
+            continue
+            
+        # Check if medication exists
+        medicament_result = await db.execute(select(Medicament).where(Medicament.id == medicament_id))
+        medicament = medicament_result.scalar_one_or_none()
+
+        if not medicament:
+            continue  # Skip items that don't exist
+
+        # Check if item already exists in cart
+        existing_item = await db.execute(
+            select(cart_medicament).where(
+                cart_medicament.c.cart_id == cart.id,
+                cart_medicament.c.medicament_id == medicament_id
+            )
+        )
+        existing = existing_item.first()
+        
+        if existing:
+            # Update quantity if item already exists
+            new_quantity = existing._mapping['quantity'] + quantity
+            await db.execute(
+                update(cart_medicament).where(
+                    cart_medicament.c.cart_id == cart.id,
+                    cart_medicament.c.medicament_id == medicament_id
+                ).values(quantity=new_quantity)
+            )
+        else:
+            # Add new item to cart
+            stmt = insert(cart_medicament).values(
+                cart_id=cart.id,
+                medicament_id=medicament_id,
+                quantity=quantity
+            )
+            await db.execute(stmt)
+
+        # Update total price
+        total_price += medicament.price * quantity
+
+    # Update cart total price
+    cart.total_price += total_price
+    await db.commit()
+
+    # Get updated medications in cart
+    result = await db.execute(
+        select(Medicament).join(cart_medicament).where(cart_medicament.c.cart_id == cart.id)
+    )
+    medicaments = result.scalars().all()
+
+    return CartOut(
+        id=cart.id,
+        patient_id=cart.patient_id,
+        total_price=cart.total_price,
+        medicaments=[MedicamentInCart(id=m.id, name=m.name, price=m.price) for m in medicaments],
+        is_paid=cart.is_paid
+    )

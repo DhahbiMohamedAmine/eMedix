@@ -6,6 +6,7 @@ class MedicamentBase(BaseModel):
     name: str
     description: Optional[str] = None
     price: Optional[float] = None
+    image: Optional[str] = None
     dosage: str
     duration: str
     stock: int  # Added stock here
@@ -18,7 +19,7 @@ class MedicamentUpdate(BaseModel):
     dosage: str
     duration: str
     stock: int  # Include stock in update too
-
+    image: Optional[str] = None 
 class MedicamentResponse(MedicamentBase):
     id: int
 
