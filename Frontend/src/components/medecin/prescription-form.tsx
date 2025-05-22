@@ -40,7 +40,7 @@ interface PrescriptionFormProps {
 
 export default function PrescriptionForm({ isOpen, appointment, onClose }: PrescriptionFormProps) {
   const [content, setContent] = useState("")
-  const [selectedMedicaments, setSelectedMedicaments] = useState<number[]>([])
+  const [selectedMedicaments, setSelectedMedicaments] = useState<{ id: number; dosage: string; duration: string }[]>([])
   const [availableMedicaments, setAvailableMedicaments] = useState<Medicament[]>([])
   const [patient, setPatient] = useState<Patient | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -80,12 +80,26 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
 
   const handleMedicamentToggle = (medicamentId: number) => {
     setSelectedMedicaments((prev) => {
-      if (prev.includes(medicamentId)) {
-        return prev.filter((id) => id !== medicamentId)
+      if (prev.some((item) => item.id === medicamentId)) {
+        return prev.filter((item) => item.id !== medicamentId)
       } else {
-        return [...prev, medicamentId]
+        const medicament = availableMedicaments.find((m) => m.id === medicamentId)
+        return [
+          ...prev,
+          {
+            id: medicamentId,
+            dosage: medicament?.dosage || "",
+            duration: medicament?.duration || "",
+          },
+        ]
       }
     })
+  }
+
+  const handleMedicamentUpdate = (medicamentId: number, field: "dosage" | "duration", value: string) => {
+    setSelectedMedicaments((prev) =>
+      prev.map((item) => (item.id === medicamentId ? { ...item, [field]: value } : item)),
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +117,7 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
     try {
       const prescriptionData = {
         content,
-        medicament_ids: selectedMedicaments,
+        medicaments: selectedMedicaments,
       }
 
       const response = await axios.post(`http://localhost:8000/prescriptions/${appointment.id}`, prescriptionData)
@@ -247,7 +261,7 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
                     <div
                       key={medicament.id}
                       className={`border rounded-lg overflow-hidden transition-colors ${
-                        selectedMedicaments.includes(medicament.id)
+                        selectedMedicaments.some((item) => item.id === medicament.id)
                           ? "border-emerald-500 bg-emerald-50"
                           : "border-gray-200 hover:border-emerald-300"
                       }`}
@@ -257,12 +271,12 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
                           <div className="flex items-center">
                             <div
                               className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
-                                selectedMedicaments.includes(medicament.id)
+                                selectedMedicaments.some((item) => item.id === medicament.id)
                                   ? "bg-emerald-500 text-white"
                                   : "bg-gray-200"
                               }`}
                             >
-                              {selectedMedicaments.includes(medicament.id) && (
+                              {selectedMedicaments.some((item) => item.id === medicament.id) && (
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
                                   className="h-4 w-4"
@@ -279,7 +293,7 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
                             </div>
                             <h4 className="font-medium text-gray-900">{medicament.name}</h4>
                           </div>
-                          {selectedMedicaments.includes(medicament.id) && (
+                          {selectedMedicaments.some((item) => item.id === medicament.id) && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -299,14 +313,59 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
                           )}
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                            <div className="bg-white rounded-md p-3 border border-gray-100">
-                              <p className="text-xs text-gray-500 mb-1">Dosage</p>
-                              <p className="text-sm font-medium">{medicament.dosage}</p>
-                            </div>
-                            <div className="bg-white rounded-md p-3 border border-gray-100">
-                              <p className="text-xs text-gray-500 mb-1">Duration</p>
-                              <p className="text-sm font-medium">{medicament.duration}</p>
-                            </div>
+                            {selectedMedicaments.some((item) => item.id === medicament.id) ? (
+                              <>
+                                <div className="bg-white rounded-md p-3 border border-gray-100">
+                                  <label
+                                    htmlFor={`dosage-${medicament.id}`}
+                                    className="text-xs text-gray-500 mb-1 block"
+                                  >
+                                    Dosage
+                                  </label>
+                                  <input
+                                    id={`dosage-${medicament.id}`}
+                                    type="text"
+                                    className="w-full text-sm p-1 border border-gray-200 rounded focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                                    value={
+                                      selectedMedicaments.find((m) => m.id === medicament.id)?.dosage ||
+                                      medicament.dosage
+                                    }
+                                    onChange={(e) => handleMedicamentUpdate(medicament.id, "dosage", e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div className="bg-white rounded-md p-3 border border-gray-100">
+                                  <label
+                                    htmlFor={`duration-${medicament.id}`}
+                                    className="text-xs text-gray-500 mb-1 block"
+                                  >
+                                    Duration
+                                  </label>
+                                  <input
+                                    id={`duration-${medicament.id}`}
+                                    type="text"
+                                    className="w-full text-sm p-1 border border-gray-200 rounded focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                                    value={
+                                      selectedMedicaments.find((m) => m.id === medicament.id)?.duration ||
+                                      medicament.duration
+                                    }
+                                    onChange={(e) => handleMedicamentUpdate(medicament.id, "duration", e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="bg-white rounded-md p-3 border border-gray-100">
+                                  <p className="text-xs text-gray-500 mb-1">Dosage</p>
+                                  <p className="text-sm font-medium">{medicament.dosage}</p>
+                                </div>
+                                <div className="bg-white rounded-md p-3 border border-gray-100">
+                                  <p className="text-xs text-gray-500 mb-1">Duration</p>
+                                  <p className="text-sm font-medium">{medicament.duration}</p>
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           {medicament.price && (
@@ -327,19 +386,19 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
               <div className="mb-8 bg-gray-50 rounded-lg p-6">
                 <h3 className="font-medium text-gray-900 mb-3">Selected Medicaments ({selectedMedicaments.length})</h3>
                 <div className="flex flex-wrap gap-2">
-                  {selectedMedicaments.map((id) => {
-                    const medicament = availableMedicaments.find((m) => m.id === id)
+                  {selectedMedicaments.map((item) => {
+                    const medicament = availableMedicaments.find((m) => m.id === item.id)
                     return medicament ? (
                       <div
-                        key={id}
+                        key={item.id}
                         className="bg-white px-3 py-2 rounded-full border border-gray-200 text-sm flex items-center"
                       >
-                        {medicament.name}
+                        {medicament.name} ({item.dosage}, {item.duration})
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleMedicamentToggle(id)
+                            handleMedicamentToggle(item.id)
                           }}
                           className="ml-2 text-gray-400 hover:text-red-500"
                         >

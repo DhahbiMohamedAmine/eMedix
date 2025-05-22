@@ -16,6 +16,12 @@ interface Medication {
   duration: string
 }
 
+interface MedicamentItem {
+  id: number
+  dosage: string
+  duration: string
+}
+
 interface Patient {
   id: number
   nom: string
@@ -40,7 +46,7 @@ interface Prescription {
   appointment_id: number
   content: string
   created_at?: string
-  medicament_ids: number[]
+  medicaments: MedicamentItem[] // Updated to match the exact API response
   patient_id?: number
   medecin_id?: number
 }
@@ -60,6 +66,7 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
   const [medications, setMedications] = useState<Medication[]>([])
   const [currentDate] = useState(new Date()) // Store today's date
   const printFrameRef = useRef<HTMLIFrameElement>(null)
+  const [debugInfo, setDebugInfo] = useState<string>("")
 
   useEffect(() => {
     if (prescriptionId) {
@@ -86,17 +93,23 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
       }
 
       const response = await axios.get(`http://localhost:8000/prescriptions/${id}`)
-      setPrescription(response.data)
+      const prescriptionData = response.data
+      setPrescription(prescriptionData)
+      console.log("Prescription data:", prescriptionData)
 
-      if (response.data.medicament_ids && response.data.medicament_ids.length > 0) {
-        fetchMedicationDetails(response.data.medicament_ids)
+      if (prescriptionData.medicaments && prescriptionData.medicaments.length > 0) {
+        console.log("Found medicaments:", prescriptionData.medicaments)
+        fetchMedicationDetails(prescriptionData.medicaments)
+      } else {
+        console.log("No medicaments found in prescription data")
+        setMedications([])
       }
 
-      if (!response.data.patient_id && appointmentData.patient_id) {
+      if (!prescriptionData.patient_id && appointmentData.patient_id) {
         fetchPatientInfo(appointmentData.patient_id)
       }
 
-      if (!response.data.medecin_id && appointmentData.medecin_id) {
+      if (!prescriptionData.medecin_id && appointmentData.medecin_id) {
         fetchDoctorInfo(appointmentData.medecin_id)
       }
     } catch (error) {
@@ -113,45 +126,51 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
 
     try {
       const response = await axios.get(`http://localhost:8000/prescriptions/${id}`)
-      setPrescription(response.data)
+      const prescriptionData = response.data
+      setPrescription(prescriptionData)
+      console.log("Prescription data:", prescriptionData)
 
-      if (response.data.medicament_ids && response.data.medicament_ids.length > 0) {
-        fetchMedicationDetails(response.data.medicament_ids)
+      if (prescriptionData.medicaments && prescriptionData.medicaments.length > 0) {
+        console.log("Found medicaments:", prescriptionData.medicaments)
+        fetchMedicationDetails(prescriptionData.medicaments)
+      } else {
+        console.log("No medicaments found in prescription data")
+        setMedications([])
       }
 
-      if (response.data.appointment_id) {
+      if (prescriptionData.appointment_id) {
         try {
           const appointmentResponse = await axios.get(
-            `http://localhost:8000/appointments/appointment/${response.data.appointment_id}`,
+            `http://localhost:8000/appointments/appointment/${prescriptionData.appointment_id}`,
           )
           const appointmentData = appointmentResponse.data
 
           if (appointmentData.patient_id) {
             fetchPatientInfo(appointmentData.patient_id)
-          } else if (response.data.patient_id) {
-            fetchPatientInfo(response.data.patient_id)
+          } else if (prescriptionData.patient_id) {
+            fetchPatientInfo(prescriptionData.patient_id)
           }
 
           if (appointmentData.medecin_id) {
             fetchDoctorInfo(appointmentData.medecin_id)
-          } else if (response.data.medecin_id) {
-            fetchDoctorInfo(response.data.medecin_id)
+          } else if (prescriptionData.medecin_id) {
+            fetchDoctorInfo(prescriptionData.medecin_id)
           }
         } catch (appointmentError) {
           console.error("Error fetching appointment details:", appointmentError)
-          if (response.data.patient_id) {
-            fetchPatientInfo(response.data.patient_id)
+          if (prescriptionData.patient_id) {
+            fetchPatientInfo(prescriptionData.patient_id)
           }
-          if (response.data.medecin_id) {
-            fetchDoctorInfo(response.data.medecin_id)
+          if (prescriptionData.medecin_id) {
+            fetchDoctorInfo(prescriptionData.medecin_id)
           }
         }
       } else {
-        if (response.data.patient_id) {
-          fetchPatientInfo(response.data.patient_id)
+        if (prescriptionData.patient_id) {
+          fetchPatientInfo(prescriptionData.patient_id)
         }
-        if (response.data.medecin_id) {
-          fetchDoctorInfo(response.data.medecin_id)
+        if (prescriptionData.medecin_id) {
+          fetchDoctorInfo(prescriptionData.medecin_id)
         }
       }
     } catch (error) {
@@ -182,11 +201,40 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
     }
   }
 
-  const fetchMedicationDetails = async (medicationIds: number[]) => {
+  const fetchMedicationDetails = async (medicamentItems: MedicamentItem[]) => {
     try {
-      const medicationPromises = medicationIds.map((id) => axios.get(`http://localhost:8000/medicaments/${id}`))
-      const responses = await Promise.all(medicationPromises)
-      const medicationData = responses.map((response) => response.data)
+      console.log("Fetching medication details for:", medicamentItems)
+
+      // Create an array to store the medication data
+      const medicationData: Medication[] = []
+
+      // Process each medicament item one by one
+      for (const item of medicamentItems) {
+        try {
+          const response = await axios.get(`http://localhost:8000/medicaments/${item.id}`)
+          const medicament = response.data
+
+          // Combine the medication data with the dosage and duration from medicamentItems
+          medicationData.push({
+            ...medicament,
+            dosage: item.dosage,
+            duration: item.duration,
+          })
+        } catch (err) {
+          console.error(`Error fetching medicament ${item.id}:`, err)
+          // Add a placeholder for failed medicament fetches
+          medicationData.push({
+            id: item.id,
+            name: `Medicament #${item.id}`,
+            description: "Failed to load details",
+            price: null,
+            dosage: item.dosage,
+            duration: item.duration,
+          })
+        }
+      }
+
+      console.log("Processed medications:", medicationData)
       setMedications(medicationData)
     } catch (error) {
       console.error("Error fetching medication details:", error)
@@ -508,6 +556,15 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
         ) : prescription ? (
           <>
             {/* Calendar view - will be hidden in print */}
+            {/* Debug Info - Remove in production */}
+            {/* {debugInfo && (
+              <div className="bg-gray-100 p-4 border-b border-gray-300 text-xs font-mono overflow-auto max-h-40">
+                <h3 className="font-bold mb-2">Debug Info (API Response):</h3>
+                <pre>{debugInfo}</pre>
+              </div>
+            )} */}
+
+            {/* Calendar view - will be hidden in print */}
             <div className="calendar-view">
               <div className="bg-gray-100 p-4">
                 <h2 className="text-lg font-bold">Appointment Calendar</h2>
@@ -602,7 +659,7 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
                   </div>
 
                   {/* Medications */}
-                  {medications && medications.length > 0 && (
+                  {medications && medications.length > 0 ? (
                     <div className="mb-8 medications-section">
                       <h3 className="font-bold mb-3">Prescribed Medications</h3>
                       <div className="overflow-hidden">
@@ -627,6 +684,18 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
                           </tbody>
                         </table>
                       </div>
+                    </div>
+                  ) : (
+                    <div className="mb-8 p-4 bg-gray-50 rounded-lg text-gray-500 text-center">
+                      <p>No medications found in this prescription.</p>
+                      {prescription.medicaments && (
+                        <div className="mt-2 text-sm">
+                          <p>Raw medicaments data:</p>
+                          <pre className="bg-gray-100 p-2 rounded mt-1 text-xs overflow-auto">
+                            {JSON.stringify(prescription.medicaments, null, 2)}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   )}
 
