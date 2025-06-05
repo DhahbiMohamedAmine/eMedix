@@ -18,6 +18,7 @@ type Medicament = {
   price?: number
   stock?: number
   image?: string
+  legal?: boolean
 }
 
 type CartItem = {
@@ -650,6 +651,15 @@ export default function MedicamentsPage() {
                         {formatPrice(med.price)}
                       </Badge>
                     )}
+                    {med.legal !== undefined && (
+                      <Badge
+                        className={`absolute top-4 ${med.price !== undefined ? "right-20" : "right-4"} ${
+                          med.legal ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                        }`}
+                      >
+                        {med.legal ? "Legal" : "Restricted"}
+                      </Badge>
+                    )}
                     {itemInCart && (
                       <Badge className="absolute top-4 left-4 bg-green-500 text-white">
                         In Cart: {itemInCart.quantity}
@@ -663,6 +673,11 @@ export default function MedicamentsPage() {
                       {med.stock !== undefined && (
                         <p className={`mt-1 text-sm font-medium ${outOfStock ? "text-red-500" : "text-green-600"}`}>
                           {outOfStock ? "Out of stock" : `In stock: ${med.stock}`}
+                        </p>
+                      )}
+                      {med.legal !== undefined && (
+                        <p className={`mt-1 text-sm font-medium ${med.legal ? "text-green-600" : "text-red-500"}`}>
+                          {med.legal ? "✓ Legal medication" : "⚠ Restricted medication"}
                         </p>
                       )}
                     </div>

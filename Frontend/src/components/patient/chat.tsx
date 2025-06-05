@@ -9,7 +9,10 @@ import Image from "next/image"
 
 import Header from "../patient/header"
 import Footer from "../footer"
-
+interface PatientData {
+  patient_id: number
+  date_naissance: string
+}
 interface Doctor {
   user_id: number
   prenom: string
@@ -50,17 +53,17 @@ export default function EnhancedPatientChat() {
 
   // Get patient ID from local storage or context
   useEffect(() => {
-    // For demo purposes, we'll use a hardcoded patient ID
-    // In a real app, you'd get this from authentication
-    const storedPatientId = localStorage.getItem("patientId")
-    if (storedPatientId) {
-      setPatientId(Number.parseInt(storedPatientId))
-    } else {
-      // For demo, set a default
-      setPatientId(1)
-      localStorage.setItem("patientId", "1")
-    }
-  }, [])
+      // Get and parse patientData from localStorage
+      const storedPatientData = localStorage.getItem("patientData")
+      if (storedPatientData) {
+        try {
+          const data: PatientData = JSON.parse(storedPatientData)
+          setPatientId(data.patient_id)
+        } catch (error) {
+          console.error("Error parsing patient data:", error)
+        }
+      }
+    }, [])
 
   // Fetch doctors the patient has had appointments with
   useEffect(() => {

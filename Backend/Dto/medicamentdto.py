@@ -1,4 +1,3 @@
-# Dto/medicamentdto.py
 from pydantic import BaseModel
 from typing import Optional
 
@@ -9,7 +8,8 @@ class MedicamentBase(BaseModel):
     image: Optional[str] = None
     dosage: str
     duration: str
-    stock: int  # Added stock here
+    stock: int
+    legal: bool = True  # ✅ Add legal field to base
 
 class MedicamentCreate(MedicamentBase):
     pass
@@ -18,11 +18,12 @@ class MedicamentUpdate(BaseModel):
     price: float
     dosage: str
     duration: str
-    stock: int  # Include stock in update too
-    image: Optional[str] = None 
+    stock: int
+    image: Optional[str] = None
+    legal: bool  # ✅ Make it required for update
+
 class MedicamentResponse(MedicamentBase):
     id: int
 
     class Config:
         orm_mode = True
-

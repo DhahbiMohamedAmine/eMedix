@@ -1,5 +1,3 @@
-
-# routers/medicament_router.py
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -35,7 +33,7 @@ async def get_medicament(medicament_id: int, db: AsyncSession = Depends(get_db))
     return medicament
 
 @router.put("/{medicament_id}", response_model=MedicamentResponse)
-async def update_medicament_price(
+async def update_medicament(
     medicament_id: int,
     medicament_data: MedicamentUpdate,
     db: AsyncSession = Depends(get_db)
@@ -49,7 +47,8 @@ async def update_medicament_price(
     medicament.dosage = medicament_data.dosage
     medicament.duration = medicament_data.duration
     medicament.stock = medicament_data.stock
-    
+    medicament.legal = medicament_data.legal  # ✅ Update legal status
+
     if medicament_data.image is not None:
         medicament.image = medicament_data.image
 
@@ -57,8 +56,6 @@ async def update_medicament_price(
     await db.commit()
     await db.refresh(medicament)
     return medicament
-
-
 
 @router.delete("/{medicament_id}")
 async def delete_medicament(medicament_id: int, db: AsyncSession = Depends(get_db)):
