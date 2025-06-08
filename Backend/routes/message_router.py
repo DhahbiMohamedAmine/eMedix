@@ -6,6 +6,7 @@ from database import get_db
 from datetime import datetime
 import json
 import logging
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,21 +22,45 @@ class ConnectionManager:
         if key not in self.active_connections:
             self.active_connections[key] = []
         self.active_connections[key].append(websocket)
-        logger.info(f"WebSocket connected for doctor {doctor_id} and patient {patient_id}")
+        logger.info(f"WebSocket connected for doctor {doctor_id} and patient {patient_id}. Total connections: {len(self.active_connections[key])}")
 
     def disconnect(self, doctor_id: int, patient_id: int, websocket: WebSocket):
         key = (doctor_id, patient_id)
         if key in self.active_connections:
-            self.active_connections[key].remove(websocket)
-            if not self.active_connections[key]:
-                del self.active_connections[key]
-            logger.info(f"WebSocket disconnected for doctor {doctor_id} and patient {patient_id}")
+            try:
+                self.active_connections[key].remove(websocket)
+                if not self.active_connections[key]:
+                    del self.active_connections[key]
+                logger.info(f"WebSocket disconnected for doctor {doctor_id} and patient {patient_id}")
+            except ValueError:
+                # WebSocket was already removed
+                pass
 
     async def broadcast(self, doctor_id: int, patient_id: int, message: str):
         key = (doctor_id, patient_id)
         if key in self.active_connections:
-            for connection in self.active_connections[key]:
-                await connection.send_text(message)
+            # Create a copy of the connections list to avoid modification during iteration
+            connections = self.active_connections[key].copy()
+            disconnected_connections = []
+            
+            for connection in connections:
+                try:
+                    await connection.send_text(message)
+                    logger.info(f"Message broadcasted to connection")
+                except Exception as e:
+                    logger.error(f"Failed to send message to connection: {e}")
+                    disconnected_connections.append(connection)
+            
+            # Remove disconnected connections
+            for conn in disconnected_connections:
+                try:
+                    self.active_connections[key].remove(conn)
+                except ValueError:
+                    pass
+            
+            # Clean up empty connection lists
+            if key in self.active_connections and not self.active_connections[key]:
+                del self.active_connections[key]
 
 manager = ConnectionManager()
 router = APIRouter()
@@ -60,13 +85,14 @@ async def websocket_endpoint(
             content = message_data["content"]
             appointment_id = message_data.get("appointment_id")
             
-            # Insert message into database - use a new transaction for each message
+            logger.info(f"Received message from {sender_id} to {receiver_id}: {content[:50]}...")
+            
+            # Insert message into database using a fresh session
             try:
-                # Start a fresh transaction
-                await db.rollback()  # Roll back any previous failed transaction
+                # Create a fresh timestamp
+                timestamp = datetime.now()
                 
-                # Skip appointment lookup and directly insert the message
-                # This avoids the error with the doctor_id column
+                # Insert the message
                 query = text("""
                 INSERT INTO messages (sender_id, receiver_id, content, appointment_id, timestamp)
                 VALUES (:sender_id, :receiver_id, :content, :appointment_id, :timestamp)
@@ -79,48 +105,63 @@ async def websocket_endpoint(
                         "sender_id": sender_id,
                         "receiver_id": receiver_id,
                         "content": content,
-                        "appointment_id": appointment_id,  # This can be None
-                        "timestamp": datetime.now()
+                        "appointment_id": appointment_id,
+                        "timestamp": timestamp
                     }
                 )
                 
                 # Get the inserted message details
                 row = result.fetchone()
-                message_id = row[0]
-                timestamp = row[1]
-                
-                # IMPORTANT: Commit the transaction to save to database
-                await db.commit()
-                
-                logger.info(f"Message saved to database with ID: {message_id}")
-                
-                # Broadcast the message to all connected clients
-                response_message = {
-                    "id": message_id,
-                    "sender_id": sender_id,
-                    "receiver_id": receiver_id,
-                    "content": content,
-                    "appointment_id": appointment_id,
-                    "timestamp": timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
-                }
-                
-                await manager.broadcast(doctor_id, patient_id, json.dumps(response_message))
+                if row:
+                    message_id = row[0]
+                    db_timestamp = row[1]
+                    
+                    # Commit the transaction
+                    await db.commit()
+                    
+                    logger.info(f"Message saved to database with ID: {message_id}")
+                    
+                    # Prepare the response message
+                    response_message = {
+                        "id": message_id,
+                        "sender_id": sender_id,
+                        "receiver_id": receiver_id,
+                        "content": content,
+                        "appointment_id": appointment_id,
+                        "timestamp": db_timestamp.isoformat() if hasattr(db_timestamp, 'isoformat') else str(db_timestamp)
+                    }
+                    
+                    # Broadcast the message to all connected clients
+                    message_json = json.dumps(response_message)
+                    await manager.broadcast(doctor_id, patient_id, message_json)
+                    
+                    logger.info(f"Message broadcasted successfully")
+                else:
+                    logger.error("No row returned from message insert")
+                    await db.rollback()
                 
             except Exception as e:
                 # Roll back the transaction on error
                 await db.rollback()
                 logger.error(f"Error saving message: {e}")
-                # Try to notify the client of the error
+                
+                # Send error message back to the sender only
+                error_response = {"error": f"Failed to save message: {str(e)}"}
                 try:
-                    await websocket.send_text(json.dumps({"error": str(e)}))
-                except:
-                    pass
+                    await websocket.send_text(json.dumps(error_response))
+                except Exception as send_error:
+                    logger.error(f"Failed to send error message: {send_error}")
                 
     except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected normally for doctor {doctor_id} and patient {patient_id}")
         manager.disconnect(doctor_id, patient_id, websocket)
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(doctor_id, patient_id, websocket)
+        try:
+            await websocket.close()
+        except:
+            pass
 
 @router.get("/messages/doctor-patient")
 async def get_chat_history(
@@ -130,9 +171,6 @@ async def get_chat_history(
 ):
     """Get chat history between a doctor and patient"""
     try:
-        # Make sure we're starting with a clean transaction
-        await db.rollback()
-        
         query = text("""
         SELECT id, sender_id, receiver_id, content, 
                appointment_id, timestamp
@@ -158,12 +196,23 @@ async def get_chat_history(
                 "timestamp": row.timestamp.isoformat() if hasattr(row.timestamp, 'isoformat') else str(row.timestamp)
             })
         
+        logger.info(f"Retrieved {len(messages)} messages for doctor {doctor_id} and patient {patient_id}")
         return messages
+        
     except Exception as e:
-        # Roll back on error
-        await db.rollback()
         logger.error(f"Error fetching messages: {e}")
         return JSONResponse(
             status_code=500,
             content={"detail": f"Error fetching messages: {str(e)}"}
         )
+
+# Health check endpoint for WebSocket connections
+@router.get("/chat/health")
+async def chat_health():
+    """Health check endpoint to verify chat service is running"""
+    active_connections_count = sum(len(connections) for connections in manager.active_connections.values())
+    return {
+        "status": "healthy",
+        "active_connections": active_connections_count,
+        "connection_groups": len(manager.active_connections)
+    }

@@ -25,6 +25,7 @@ import {
   UserCog,
   Award,
   AlertCircle,
+  Trash2,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Image from "next/image"
@@ -85,6 +86,9 @@ export function DoctorsList() {
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorDetail | null>(null)
   const [doctorDetailLoading, setDoctorDetailLoading] = useState(false)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [doctorToDelete, setDoctorToDelete] = useState<Doctor | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const itemsPerPage = 8
 
   const dictionary = useDictionary()
@@ -131,6 +135,33 @@ export function DoctorsList() {
       alert("Failed to load doctor details. Please try again.")
     } finally {
       setDoctorDetailLoading(false)
+    }
+  }
+
+  const handleDeleteDoctor = async (doctorId: number) => {
+    try {
+      setDeleteLoading(true)
+
+      const res = await fetch(`http://localhost:8000/users/medecin/${doctorId}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`)
+      }
+
+      // Remove the deleted doctor from the state
+      setDoctors((prev) => prev.filter((d) => d.id !== doctorId))
+      setDeleteDialogOpen(false)
+      setDoctorToDelete(null)
+
+      // Show success message (you could use a toast notification here)
+      alert("Doctor deleted successfully")
+    } catch (err) {
+      console.error("Failed to delete doctor:", err)
+      alert("Failed to delete doctor. Please try again.")
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -446,8 +477,6 @@ export function DoctorsList() {
 
   return (
     <div className="space-y-6">
-
-
       {/* Main Content */}
       <Card className="dark:bg-gray-800 dark:text-gray-100 shadow-sm">
         <CardHeader className="pb-2 border-b">
@@ -522,19 +551,20 @@ export function DoctorsList() {
           </div>
         </CardHeader>
 
-        <div className="p-4 border-b bg-gray-50">
+        {/* Filter Section */}
+        <div className="p-4 border-b bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             <div className="flex items-center">
-              <Filter className="h-4 w-4 mr-2 text-gray-500" />
-              <span className="text-sm font-medium">{dictionary.dashboard.filters}:</span>
+              <Filter className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm font-medium dark:text-gray-300">{dictionary.dashboard.filters}:</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
               <Select value={filters.grade} onValueChange={(value) => handleFilterChange("grade", value)}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder={dictionary.dashboard.selectGrade} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="all">All Grades</SelectItem>
                   {uniqueGrades.map((grade) => (
                     <SelectItem key={grade} value={grade}>
@@ -545,10 +575,10 @@ export function DoctorsList() {
               </Select>
 
               <Select value={filters.city} onValueChange={(value) => handleFilterChange("city", value)}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder={dictionary.dashboard.selectCity} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="all">All Cities</SelectItem>
                   {uniqueCities.map((city) => (
                     <SelectItem key={city} value={city}>
@@ -559,10 +589,10 @@ export function DoctorsList() {
               </Select>
 
               <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange("sortBy", value)}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="name">Sort by Name</SelectItem>
                   <SelectItem value="email">Sort by Email</SelectItem>
                   <SelectItem value="city">Sort by City</SelectItem>
@@ -574,10 +604,10 @@ export function DoctorsList() {
                 value={filters.sortOrder}
                 onValueChange={(value) => handleFilterChange("sortOrder", value as "asc" | "desc")}
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder="Order" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="asc">Ascending</SelectItem>
                   <SelectItem value="desc">Descending</SelectItem>
                 </SelectContent>
@@ -585,19 +615,25 @@ export function DoctorsList() {
             </div>
 
             {activeFilters.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-blue-600">
+              <button
+                onClick={clearAllFilters}
+                className="text-blue-600 dark:text-blue-400 text-sm hover:underline md:ml-auto"
+              >
                 Clear All
-              </Button>
+              </button>
             )}
           </div>
 
           {activeFilters.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
               {activeFilters.map((filter) => (
-                <Badge key={filter} variant="secondary" className="flex items-center gap-1">
+                <span
+                  key={filter}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                >
                   {filter}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => clearFilter(filter)} />
-                </Badge>
+                  <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => clearFilter(filter)} />
+                </span>
               ))}
             </div>
           )}
@@ -679,7 +715,7 @@ export function DoctorsList() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center">
+                        <div className="flex items-center space-x-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -687,6 +723,17 @@ export function DoctorsList() {
                             onClick={() => handleViewDoctor(doc.id)}
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              setDoctorToDelete(doc)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -748,9 +795,20 @@ export function DoctorsList() {
                     </div>
                   </div>
 
-                  <div className="border-t p-2 bg-gray-50 flex justify-end">
+                  <div className="border-t p-2 bg-gray-50 flex justify-end space-x-1">
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleViewDoctor(doc.id)}>
                       <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setDoctorToDelete(doc)
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </Card>
@@ -991,6 +1049,47 @@ export function DoctorsList() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="rounded-full bg-red-50 p-3">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-center">Delete Doctor</h2>
+            <p className="text-center text-gray-500">
+              Are you sure you want to delete {doctorToDelete?.prenom} {doctorToDelete?.nom}? This action cannot be
+              undone.
+            </p>
+            <div className="flex gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false)
+                  setDoctorToDelete(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => doctorToDelete && handleDeleteDoctor(doctorToDelete.id)}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Doctor"
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

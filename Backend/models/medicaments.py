@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float
+from sqlalchemy import Boolean, Column, Integer, String, Text, Float
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -10,8 +10,10 @@ class Medicament(Base):
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=True)
     price = Column(Float, nullable=True)
+    image = Column(String(255), nullable=True)
     dosage = Column(String(100), nullable=False)
     duration = Column(String(100), nullable=False)
     stock= Column(Integer, nullable=False)
+    legal = Column(Boolean, default=True, nullable=False)
     # Relationships
     prescriptions = relationship("Prescription", secondary="prescription_medicament", back_populates="medicaments")

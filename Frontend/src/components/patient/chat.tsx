@@ -2,8 +2,8 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState, useRef } from "react"
-import { Send, User, Search, Calendar, Plus } from "lucide-react"
+import { useEffect, useState, useRef, useCallback } from "react"
+import { Send, User, Search, Calendar, Plus, Wifi, WifiOff, Menu, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -42,6 +42,9 @@ export default function EnhancedPatientChat() {
   const [isClient, setIsClient] = useState(false)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [connectionAttempts, setConnectionAttempts] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const maxReconnectAttempts = 5
 
   // Set isClient to true after hydration
   useEffect(() => {
@@ -50,13 +53,10 @@ export default function EnhancedPatientChat() {
 
   // Get patient ID from local storage or context
   useEffect(() => {
-    // For demo purposes, we'll use a hardcoded patient ID
-    // In a real app, you'd get this from authentication
     const storedPatientId = localStorage.getItem("patientId")
     if (storedPatientId) {
       setPatientId(Number.parseInt(storedPatientId))
     } else {
-      // For demo, set a default
       setPatientId(1)
       localStorage.setItem("patientId", "1")
     }
@@ -67,7 +67,7 @@ export default function EnhancedPatientChat() {
     if (patientId) {
       fetchDoctors(patientId)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId])
 
   // Connect to WebSocket when a doctor is selected
@@ -80,14 +80,17 @@ export default function EnhancedPatientChat() {
     return () => {
       // Clean up WebSocket connection when component unmounts or doctor changes
       if (socketRef.current) {
-        socketRef.current.close()
+        console.log("Cleaning up WebSocket connection")
+        socketRef.current.close(1000, "Component unmounting")
+        socketRef.current = null
       }
 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId, selectedDoctor])
 
   // Scroll to bottom when messages change
@@ -110,9 +113,7 @@ export default function EnhancedPatientChat() {
       const data = await res.json()
       console.log("Doctors data:", data)
 
-      // Extract the doctors array from the response object
       if (data && data.doctors && Array.isArray(data.doctors)) {
-        // Map the data to match our Doctor interface
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formattedDoctors = data.doctors.map((doctor: any) => ({
           user_id: doctor.id,
@@ -121,18 +122,16 @@ export default function EnhancedPatientChat() {
           email: doctor.email,
           specialite: doctor.grade || "General Practitioner",
           photo: doctor.photo || null,
-          // Add any other fields needed by your interface
         }))
 
         setDoctors(formattedDoctors)
 
-        // If we have doctors and none is selected, select the first one
         if (formattedDoctors.length > 0 && !selectedDoctor) {
           setSelectedDoctor(formattedDoctors[0])
         }
       } else {
         console.error("Expected an object with doctors array, but received:", data)
-        setDoctors([]) // Set to empty array as fallback
+        setDoctors([])
         setError("Received invalid data format from server")
       }
 
@@ -144,11 +143,8 @@ export default function EnhancedPatientChat() {
     }
   }
 
-  // For testing: Create a test appointment with a doctor
   const createTestAppointment = async () => {
     try {
-      // This assumes you have at least one doctor in your system with ID 1
-      // Adjust the doctor_id as needed
       const doctorId = 1
       const res = await fetch(
         `http://localhost:8000/test/create-appointment?patient_id=${patientId}&doctor_id=${doctorId}`,
@@ -163,8 +159,6 @@ export default function EnhancedPatientChat() {
 
       const data = await res.json()
       alert(`Test appointment created: ${data.message}`)
-
-      // Refresh the doctor list
       fetchDoctors(patientId!)
     } catch (error) {
       console.error("Error creating test appointment:", error)
@@ -172,71 +166,113 @@ export default function EnhancedPatientChat() {
     }
   }
 
-  const connectWebSocket = (doctorId: number, patientId: number) => {
-    try {
-      console.log(`Connecting WebSocket for doctor ${doctorId} and patient ${patientId}`)
-
+  const connectWebSocket = useCallback(
+    (doctorId: number, patientId: number) => {
       // Close existing connection if any
       if (socketRef.current) {
+        console.log("Closing existing WebSocket connection")
         socketRef.current.close()
+        socketRef.current = null
       }
 
-      const ws = new WebSocket(`ws://localhost:8000/ws/chat?doctor_id=${doctorId}&patient_id=${patientId}`)
-      socketRef.current = ws
-
-      ws.onopen = () => {
-        console.log("WebSocket connected")
-        setIsConnected(true)
+      // Clear any existing reconnection timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
 
-      ws.onmessage = (event) => {
-        console.log("WebSocket message received:", event.data)
-        try {
-          const msg = JSON.parse(event.data)
+      try {
+        console.log(`Attempting to connect WebSocket for doctor ${doctorId} and patient ${patientId}`)
+        const wsUrl = `ws://localhost:8000/ws/chat?doctor_id=${doctorId}&patient_id=${patientId}`
+        console.log("WebSocket URL:", wsUrl)
 
-          // Check if this is an error message
-          if (msg.error) {
-            console.error("Error from server:", msg.error)
-            return
-          }
+        const ws = new WebSocket(wsUrl)
+        socketRef.current = ws
 
-          // Add message to the list if it's not already there
-          setMessages((prev) => {
-            // Check if message with this ID already exists
-            const exists = prev.some((m) => m.id === msg.id)
-            if (exists) return prev
-            return [...prev, msg]
-          })
-        } catch (e) {
-          console.error("Error parsing WebSocket message:", e)
-        }
-      }
-
-      ws.onclose = (event) => {
-        console.log("WebSocket disconnected", event.code, event.reason)
-        setIsConnected(false)
-
-        // Attempt to reconnect after a delay
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
+        ws.onopen = (event) => {
+          console.log("✅ WebSocket connected successfully", event)
+          setIsConnected(true)
+          setConnectionAttempts(0)
+          setError(null)
         }
 
-        reconnectTimeoutRef.current = setTimeout(() => {
-          if (selectedDoctor && patientId) {
-            connectWebSocket(selectedDoctor.user_id, patientId)
-          }
-        }, 3000)
-      }
+        ws.onmessage = (event) => {
+          console.log("📨 WebSocket message received:", event.data)
+          try {
+            const msg = JSON.parse(event.data)
+            console.log("Parsed message:", msg)
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error)
+            // Check if this is an error message
+            if (msg.error) {
+              console.error("❌ Error from server:", msg.error)
+              setError(`Server error: ${msg.error}`)
+              return
+            }
+
+            // Validate message structure
+            if (!msg.id || !msg.content || !msg.sender_id || !msg.receiver_id) {
+              console.error("❌ Invalid message structure:", msg)
+              return
+            }
+
+            // Add message to the list
+            setMessages((prevMessages) => {
+              console.log("Current messages count:", prevMessages.length)
+
+              // Check if message with this ID already exists
+              const exists = prevMessages.some((m) => m.id === msg.id)
+              if (exists) {
+                console.log("Message already exists, skipping:", msg.id)
+                return prevMessages
+              }
+
+              const newMessages = [...prevMessages, msg].sort(
+                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+              )
+              console.log("✅ Added new message, total count:", newMessages.length)
+              return newMessages
+            })
+          } catch (e) {
+            console.error("❌ Error parsing WebSocket message:", e, "Raw data:", event.data)
+          }
+        }
+
+        ws.onclose = (event) => {
+          console.log("🔌 WebSocket disconnected", event.code, event.reason)
+          setIsConnected(false)
+          socketRef.current = null
+
+          // Only attempt to reconnect if it wasn't a normal closure and we haven't exceeded max attempts
+          if (event.code !== 1000 && connectionAttempts < maxReconnectAttempts) {
+            console.log(`🔄 Attempting to reconnect (attempt ${connectionAttempts + 1}/${maxReconnectAttempts})`)
+            setConnectionAttempts((prev) => prev + 1)
+
+            reconnectTimeoutRef.current = setTimeout(
+              () => {
+                if (selectedDoctor && patientId) {
+                  connectWebSocket(doctorId, patientId)
+                }
+              },
+              Math.min(1000 * Math.pow(2, connectionAttempts), 10000),
+            ) // Exponential backoff, max 10s
+          } else if (connectionAttempts >= maxReconnectAttempts) {
+            setError("Connection lost. Please refresh the page to reconnect.")
+          }
+        }
+
+        ws.onerror = (error) => {
+          console.error("❌ WebSocket error:", error)
+          setIsConnected(false)
+          setError("WebSocket connection error")
+        }
+      } catch (error) {
+        console.error("❌ Error setting up WebSocket:", error)
         setIsConnected(false)
+        setError("Failed to establish WebSocket connection")
       }
-    } catch (error) {
-      console.error("Error setting up WebSocket:", error)
-      setIsConnected(false)
-    }
-  }
+    },
+    [connectionAttempts, selectedDoctor],
+  )
 
   const fetchMessages = async (doctorId: number, patientId: number) => {
     try {
@@ -253,40 +289,55 @@ export default function EnhancedPatientChat() {
 
       const data = await res.json()
       console.log("Messages data:", data)
-      setMessages(data)
+
+      // Sort messages by timestamp
+      const sortedMessages = Array.isArray(data)
+        ? data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        : []
+
+      setMessages(sortedMessages)
     } catch (error) {
       console.error("Error fetching messages:", error)
       setError(`Failed to load messages: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  const sendMessage = () => {
-    if (!patientId || !selectedDoctor || !messageText.trim()) return
+  const sendMessage = useCallback(() => {
+    if (!patientId || !selectedDoctor || !messageText.trim()) {
+      console.log("Cannot send message: missing required data")
+      return
+    }
 
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const messageData = {
-        sender_id: patientId,
-        receiver_id: selectedDoctor.user_id,
-        content: messageText,
-        // Use appointment_id 361 from your example data as a fallback
-        appointment_id: 361,
-      }
-
-      console.log("Sending message:", messageData)
-      socketRef.current.send(JSON.stringify(messageData))
-
-      // Clear the input field after sending
-      setMessageText("")
-    } else {
-      console.error("WebSocket not connected")
-      alert("Connection to chat server lost. Please refresh the page and try again.")
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+      console.error("❌ WebSocket not connected, current state:", socketRef.current?.readyState)
+      setError("Connection lost. Attempting to reconnect...")
 
       // Try to reconnect
       if (selectedDoctor && patientId) {
         connectWebSocket(selectedDoctor.user_id, patientId)
       }
+      return
     }
-  }
+
+    const messageData = {
+      sender_id: patientId,
+      receiver_id: selectedDoctor.user_id,
+      content: messageText.trim(),
+      appointment_id: 361,
+    }
+
+    console.log("📤 Sending message:", messageData)
+
+    try {
+      socketRef.current.send(JSON.stringify(messageData))
+      console.log("✅ Message sent successfully")
+      setMessageText("")
+      setError(null)
+    } catch (error) {
+      console.error("❌ Error sending message:", error)
+      setError("Failed to send message. Please try again.")
+    }
+  }, [patientId, selectedDoctor, messageText, connectWebSocket])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -324,12 +375,9 @@ export default function EnhancedPatientChat() {
     `${doctor.prenom} ${doctor.nom} ${doctor.specialite}`.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  // Get doctor profile image URL
   const getDoctorPhotoUrl = (doctor: Doctor) => {
     if (!doctor.photo) return null
-    // If the photo path is already a full URL, use it directly
     if (doctor.photo.startsWith("http")) return doctor.photo
-    // Otherwise, prepend the base URL
     return `http://localhost:8000${doctor.photo}`
   }
 
@@ -355,116 +403,151 @@ export default function EnhancedPatientChat() {
       <section className="px-4 sm:px-8 lg:px-16 xl:px-40 2xl:px-64 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="relative w-full max-w-6xl rounded-xl bg-white shadow-xl overflow-hidden">
-            {/* Banner */}
-            
-
-            <div className="grid md:grid-cols-3 h-[700px]">
-              {/* Left side - Doctor List */}
-              <div className="relative flex flex-col w-full h-full bg-white border-r border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-2xl font-bold text-gray-800">Messages</h2>
-                  <p className="text-sm text-gray-500 mt-1">Chat with your healthcare providers</p>
-                </div>
-
-                {/* Search */}
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search doctors..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-4 py-2 pl-10 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/50 bg-gray-50"
-                    />
-                    <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  </div>
-                </div>
-
-                {/* Doctor List */}
-                <div className="flex-1 overflow-y-auto">
-                  {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded relative">
-                      <strong className="font-bold">Error: </strong>
-                      <span className="block sm:inline">{error}</span>
-                    </div>
-                  )}
-
-                  {filteredDoctors.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 px-6">
-                      <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                        <User className="h-10 w-10 text-gray-400" />
+            {/* Fixed Layout Container */}
+            <div className="flex h-[700px]">
+              {/* Left Sidebar - Doctor List */}
+              <div
+                className={`${
+                  sidebarOpen ? "w-80" : "w-0"
+                } transition-all duration-300 ease-in-out flex-shrink-0 bg-white border-r border-gray-200 overflow-hidden`}
+                style={{ minWidth: sidebarOpen ? "320px" : "0px" }}
+              >
+                <div className="flex flex-col h-full">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Messages</h2>
+                        <p className="text-sm text-gray-500 mt-1">Chat with your healthcare providers</p>
                       </div>
-                      <p className="mb-4">No doctors found. Schedule an appointment to start chatting with a doctor.</p>
 
-                      {/* Test button to create an appointment - for development only */}
-                      <button
-                        onClick={createTestAppointment}
-                        className="flex items-center justify-center gap-2 mx-auto px-4 py-2 bg-[#2DD4BF] text-white rounded-md hover:bg-[#2DD4BF]/90 transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Create Test Appointment</span>
-                      </button>
-
-                      <Link
-                        href="/patient/appointments/new"
-                        className="flex items-center justify-center gap-2 mx-auto mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-                      >
-                        <Calendar className="h-4 w-4" />
-                        <span>Schedule Appointment</span>
-                      </Link>
                     </div>
-                  ) : (
-                    <div className="divide-y divide-gray-100">
-                      {filteredDoctors.map((doctor) => (
-                        <div
-                          key={doctor.user_id}
-                          onClick={() => setSelectedDoctor(doctor)}
-                          className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
-                            selectedDoctor?.user_id === doctor.user_id
-                              ? "bg-[#2DD4BF]/5 border-l-4 border-[#2DD4BF]"
-                              : ""
-                          }`}
+                  </div>
+
+                  {/* Search */}
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search doctors..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 pl-10 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2DD4BF]/50 bg-gray-50"
+                      />
+                      <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                    </div>
+                  </div>
+
+                  {/* Doctor List */}
+                  <div className="flex-1 overflow-y-auto">
+                    {error && (
+                      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded relative">
+                        <strong className="font-bold">Error: </strong>
+                        <span className="block sm:inline">{error}</span>
+                        {!isConnected && (
+                          <button
+                            onClick={() =>
+                              selectedDoctor && patientId && connectWebSocket(selectedDoctor.user_id, patientId)
+                            }
+                            className="mt-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                          >
+                            Retry Connection
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {filteredDoctors.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 px-6">
+                        <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                          <User className="h-10 w-10 text-gray-400" />
+                        </div>
+                        <p className="mb-4">
+                          No doctors found. Schedule an appointment to start chatting with a doctor.
+                        </p>
+
+                        <button
+                          onClick={createTestAppointment}
+                          className="flex items-center justify-center gap-2 mx-auto px-4 py-2 bg-[#2DD4BF] text-white rounded-md hover:bg-[#2DD4BF]/90 transition-colors"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 overflow-hidden">
-                              {doctor.photo ? (
-                                <Image
-                                  src={getDoctorPhotoUrl(doctor) || "/placeholder.svg"}
-                                  alt={`${doctor.prenom} ${doctor.nom}`}
-                                  width={48}
-                                  height={48}
-                                  className="w-full h-full object-cover"
-                                  unoptimized
-                                />
-                              ) : doctor.prenom && doctor.nom ? (
-                                `${doctor.prenom[0]}${doctor.nom[0]}`.toUpperCase()
-                              ) : (
-                                "DR"
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-gray-900 truncate">
-                                Dr. {doctor.prenom} {doctor.nom}
-                              </h3>
-                              <p className="text-sm text-gray-500 truncate">
-                                {doctor.specialite || "General Practitioner"}
-                              </p>
+                          <Plus className="h-4 w-4" />
+                          <span>Create Test Appointment</span>
+                        </button>
+
+                        <Link
+                          href="/patient/appointments/new"
+                          className="flex items-center justify-center gap-2 mx-auto mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                        >
+                          <Calendar className="h-4 w-4" />
+                          <span>Schedule Appointment</span>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {filteredDoctors.map((doctor) => (
+                          <div
+                            key={doctor.user_id}
+                            onClick={() => {
+                              setSelectedDoctor(doctor)
+                              // Auto-close sidebar on mobile after selection
+                              if (window.innerWidth < 768) {
+                                setSidebarOpen(false)
+                              }
+                            }}
+                            className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
+                              selectedDoctor?.user_id === doctor.user_id
+                                ? "bg-[#2DD4BF]/5 border-l-4 border-[#2DD4BF]"
+                                : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 overflow-hidden">
+                                {doctor.photo ? (
+                                  <Image
+                                    src={getDoctorPhotoUrl(doctor) || "/placeholder.svg"}
+                                    alt={`${doctor.prenom} ${doctor.nom}`}
+                                    width={48}
+                                    height={48}
+                                    className="w-full h-full object-cover"
+                                    unoptimized
+                                  />
+                                ) : doctor.prenom && doctor.nom ? (
+                                  `${doctor.prenom[0]}${doctor.nom[0]}`.toUpperCase()
+                                ) : (
+                                  "DR"
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-gray-900 truncate">
+                                  Dr. {doctor.prenom} {doctor.nom}
+                                </h3>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {doctor.specialite || "General Practitioner"}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Right side - Chat */}
-              <div className="flex flex-col h-full md:col-span-2 bg-gray-50">
+              <div className="flex-1 flex flex-col bg-gray-50 min-w-0">
                 {selectedDoctor ? (
                   <>
                     {/* Chat Header */}
                     <div className="p-4 border-b border-gray-200 bg-white">
                       <div className="flex items-center gap-3">
+                        {/* Sidebar Toggle Button */}
+                        <button
+                          onClick={() => setSidebarOpen(!sidebarOpen)}
+                          className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+                        >
+                          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                        </button>
+
                         <div className="w-12 h-12 rounded-full bg-[#2DD4BF]/10 flex items-center justify-center text-sm font-medium text-[#2DD4BF] overflow-hidden">
                           {selectedDoctor.photo ? (
                             <Image
@@ -481,12 +564,13 @@ export default function EnhancedPatientChat() {
                             "DR"
                           )}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h2 className="font-bold text-gray-900">
                             Dr. {selectedDoctor.prenom} {selectedDoctor.nom}
                           </h2>
                           <p className="text-sm text-gray-500">{selectedDoctor.specialite || "General Practitioner"}</p>
                         </div>
+
                       </div>
                     </div>
 
@@ -518,7 +602,7 @@ export default function EnhancedPatientChat() {
 
                               return (
                                 <div
-                                  key={msg.id || idx}
+                                  key={`${msg.id}-${idx}`}
                                   className={`flex ${isSender ? "justify-end" : "justify-start"} items-end gap-2`}
                                 >
                                   {!isSender && showAvatar ? (
@@ -594,14 +678,15 @@ export default function EnhancedPatientChat() {
                             value={messageText}
                             onChange={(e) => setMessageText(e.target.value)}
                             onKeyDown={handleKeyPress}
-                            placeholder="Type your message..."
-                            className="w-full px-3 py-2 bg-transparent border-none focus:outline-none resize-none rounded-lg"
+                            placeholder={isConnected ? "Type your message..." : "Connecting..."}
+                            disabled={!isConnected}
+                            className="w-full px-3 py-2 bg-transparent border-none focus:outline-none resize-none rounded-lg disabled:opacity-50"
                             rows={2}
                           />
                         </div>
                         <button
                           onClick={sendMessage}
-                          disabled={!messageText.trim()}
+                          disabled={!messageText.trim() || !isConnected}
                           className="rounded-full bg-[#2DD4BF] p-3 text-white transition-colors hover:bg-[#2DD4BF]/90 focus:ring-2 focus:ring-[#2DD4BF]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Send className="h-5 w-5" />

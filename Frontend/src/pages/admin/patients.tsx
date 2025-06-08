@@ -1,4 +1,5 @@
 "use client"
+import "../../../public/tailwind.css"
 import { useState, useEffect } from "react"
 import { PatientsList } from "@/components/admin/patients-list"
 import { DashboardHeader } from "@/components/admin/dashboard-header"

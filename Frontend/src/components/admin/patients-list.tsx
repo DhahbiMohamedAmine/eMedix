@@ -26,6 +26,7 @@ import {
   Calendar,
   Heart,
   User,
+  Trash2,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Image from "next/image"
@@ -84,6 +85,9 @@ export function PatientsList() {
   const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null)
   const [patientDetailLoading, setPatientDetailLoading] = useState(false)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const itemsPerPage = 8
 
   const dictionary = useDictionary()
@@ -130,6 +134,33 @@ export function PatientsList() {
       alert("Failed to load patient details. Please try again.")
     } finally {
       setPatientDetailLoading(false)
+    }
+  }
+
+  const handleDeletePatient = async (patientId: number) => {
+    try {
+      setDeleteLoading(true)
+
+      const res = await fetch(`http://localhost:8000/users/patient/${patientId}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`)
+      }
+
+      // Remove the deleted patient from the state
+      setPatients((prev) => prev.filter((p) => p.id !== patientId))
+      setDeleteDialogOpen(false)
+      setPatientToDelete(null)
+
+      // Show success message (you could use a toast notification here)
+      alert("Patient deleted successfully")
+    } catch (err) {
+      console.error("Failed to delete patient:", err)
+      alert("Failed to delete patient. Please try again.")
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -201,7 +232,7 @@ export function PatientsList() {
     })
 
     return result
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patients, searchTerm, filters])
 
   // Update active filters display
@@ -547,19 +578,19 @@ export function PatientsList() {
           </div>
         </CardHeader>
 
-        <div className="p-4 border-b bg-gray-50">
+        <div className="p-4 border-b bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             <div className="flex items-center">
-              <Filter className="h-4 w-4 mr-2 text-gray-500" />
-              <span className="text-sm font-medium">{dictionary.dashboard.filters}:</span>
+              <Filter className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm font-medium dark:text-gray-300">{dictionary.dashboard.filters}:</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <Select value={filters.ageGroup} onValueChange={(value) => handleFilterChange("ageGroup", value)}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder="Select Age Group" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="all">All Ages</SelectItem>
                   <SelectItem value="under18">Under 18</SelectItem>
                   <SelectItem value="18to29">18-29</SelectItem>
@@ -570,10 +601,10 @@ export function PatientsList() {
               </Select>
 
               <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange("sortBy", value)}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="name">Sort by Name</SelectItem>
                   <SelectItem value="email">Sort by Email</SelectItem>
                   <SelectItem value="age">Sort by Age</SelectItem>
@@ -584,10 +615,10 @@ export function PatientsList() {
                 value={filters.sortOrder}
                 onValueChange={(value) => handleFilterChange("sortOrder", value as "asc" | "desc")}
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="w-full border rounded-md p-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                   <SelectValue placeholder="Order" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-md">
                   <SelectItem value="asc">Ascending</SelectItem>
                   <SelectItem value="desc">Descending</SelectItem>
                 </SelectContent>
@@ -595,19 +626,25 @@ export function PatientsList() {
             </div>
 
             {activeFilters.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-blue-600">
+              <button
+                onClick={clearAllFilters}
+                className="text-blue-600 dark:text-blue-400 text-sm hover:underline md:ml-auto"
+              >
                 Clear All
-              </Button>
+              </button>
             )}
           </div>
 
           {activeFilters.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
               {activeFilters.map((filter) => (
-                <Badge key={filter} variant="secondary" className="flex items-center gap-1">
+                <span
+                  key={filter}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                >
                   {filter}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => clearFilter(filter)} />
-                </Badge>
+                  <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => clearFilter(filter)} />
+                </span>
               ))}
             </div>
           )}
@@ -687,7 +724,7 @@ export function PatientsList() {
                       <td className="py-3 px-4">{patient.email}</td>
                       <td className="py-3 px-4">{patient.telephone}</td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center">
+                        <div className="flex items-center space-x-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -695,6 +732,17 @@ export function PatientsList() {
                             onClick={() => handleViewPatient(patient.id)}
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              setPatientToDelete(patient)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -754,7 +802,7 @@ export function PatientsList() {
                     </div>
                   </div>
 
-                  <div className="border-t p-2 bg-gray-50 flex justify-end">
+                  <div className="border-t p-2 bg-gray-50 flex justify-end space-x-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -762,6 +810,17 @@ export function PatientsList() {
                       onClick={() => handleViewPatient(patient.id)}
                     >
                       <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setPatientToDelete(patient)
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </Card>
@@ -1036,6 +1095,47 @@ export function PatientsList() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="rounded-full bg-red-50 p-3">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-center">Delete Patient</h2>
+            <p className="text-center text-gray-500">
+              Are you sure you want to delete {patientToDelete?.prenom} {patientToDelete?.nom}? This action cannot be
+              undone.
+            </p>
+            <div className="flex gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false)
+                  setPatientToDelete(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => patientToDelete && handleDeletePatient(patientToDelete.id)}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Patient"
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

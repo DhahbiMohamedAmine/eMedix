@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import Image from "next/image"
 
 type Medicament = {
   id: number
@@ -17,6 +18,8 @@ type Medicament = {
   dosage?: string
   price?: number
   stock?: number
+  image?: string
+  legal?: boolean
 }
 
 type CartItem = {
@@ -55,6 +58,9 @@ export default function MedicamentsPage() {
   const [addingToCart, setAddingToCart] = useState<number | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
 
+  // Backend URL for image paths
+  const BACKEND_URL = "http://localhost:8000"
+
   const showNotification = (message: string, type: "success" | "error" = "success") => {
     const id = Date.now().toString()
     setNotifications((prev) => [...prev, { id, message, type }])
@@ -65,6 +71,20 @@ export default function MedicamentsPage() {
 
   const removeNotification = (id: string) => {
     setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+  }
+
+  // Improved image URL handling similar to doctor list
+  const getImageUrl = (imagePath: string | null | undefined) => {
+    if (!imagePath) return "/placeholder.svg?height=300&width=500"
+
+    try {
+      if (imagePath.startsWith("http")) return imagePath
+      const formattedPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`
+      return `${BACKEND_URL}${formattedPath}`
+    } catch (error) {
+      console.error("Error formatting image URL:", error)
+      return "/placeholder.svg?height=300&width=500"
+    }
   }
 
   useEffect(() => {
@@ -105,7 +125,7 @@ export default function MedicamentsPage() {
       if (storedCartId) {
         // Verify this cart exists and is not paid
         try {
-          const response = await fetch(`http://localhost:8000/cart/${storedCartId}`)
+          const response = await fetch(`${BACKEND_URL}/cart/${storedCartId}`)
 
           if (response.ok) {
             const cartData: CartResponse = await response.json()
@@ -141,7 +161,7 @@ export default function MedicamentsPage() {
 
     try {
       // Try to get an active (unpaid) cart for this patient
-      const response = await fetch(`http://localhost:8000/cart/active/${patientId}`)
+      const response = await fetch(`${BACKEND_URL}/cart/active/${patientId}`)
 
       if (response.ok) {
         // Found an active cart
@@ -151,7 +171,7 @@ export default function MedicamentsPage() {
         processCartData(cartData)
       } else if (response.status === 404) {
         // No active cart found, create a new one
-        const createResponse = await fetch(`http://localhost:8000/cart/add/${patientId}`, {
+        const createResponse = await fetch(`${BACKEND_URL}/cart/add/${patientId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: [] }),
@@ -182,7 +202,7 @@ export default function MedicamentsPage() {
     if (cartData && cartData.medicaments) {
       // We need to get the quantities from the cart_medicament table
       // For now, we'll make a separate API call to get this information
-      fetch(`http://localhost:8000/cart/${cartData.id}/items`)
+      fetch(`${BACKEND_URL}/cart/${cartData.id}/items`)
         .then((response) => {
           if (response.ok) return response.json()
           // If the endpoint doesn't exist yet, just use default quantities of 1
@@ -225,12 +245,26 @@ export default function MedicamentsPage() {
   const fetchMedicaments = async () => {
     try {
       setLoading(true)
-      const res = await fetch("http://localhost:8000/medicaments", {
+      const res = await fetch(`${BACKEND_URL}/medicaments`, {
         // Add cache: 'no-cache' to ensure we always get fresh data
         cache: "no-cache",
       })
       if (!res.ok) throw new Error("Failed to fetch medicaments")
       const data = await res.json()
+
+      // Log the image URLs to help debug
+      console.log(
+        "Medicaments with images:",
+        data
+          .filter((m: Medicament) => m.image)
+          .map((m: Medicament) => ({
+            id: m.id,
+            name: m.name,
+            image: m.image,
+            fullImageUrl: getImageUrl(m.image),
+          })),
+      )
+
       setMedicaments(data)
     } catch (error) {
       console.error("Error fetching medicaments:", error)
@@ -251,6 +285,7 @@ export default function MedicamentsPage() {
     return () => {
       window.removeEventListener("focus", handleFocus)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Function to update quantity directly in the database
@@ -283,7 +318,7 @@ export default function MedicamentsPage() {
         )
 
         // Update the quantity in the database
-        const response = await fetch(`http://localhost:8000/cart/update/${activeCartId}`, {
+        const response = await fetch(`${BACKEND_URL}/cart/update/${activeCartId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -303,7 +338,7 @@ export default function MedicamentsPage() {
         setCartItems(updatedItems)
       } else {
         // If item doesn't exist in cart, add it with the specified quantity
-        const response = await fetch(`http://localhost:8000/cart/add/${patientId}`, {
+        const response = await fetch(`${BACKEND_URL}/cart/add/${patientId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -393,7 +428,7 @@ export default function MedicamentsPage() {
         await updateCartQuantity(medicament_id, newQuantity, medicamentName)
       } else {
         // If item doesn't exist, add it with the selected quantity
-        const response = await fetch(`http://localhost:8000/cart/add/${patientId}`, {
+        const response = await fetch(`${BACKEND_URL}/cart/add/${patientId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -432,6 +467,7 @@ export default function MedicamentsPage() {
 
   useEffect(() => {
     fetchMedicaments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const dosages = Array.from(
@@ -446,7 +482,8 @@ export default function MedicamentsPage() {
   const filteredMedicaments = medicaments.filter((med) => {
     const nameMatch = med.name.toLowerCase().includes(searchTerm.toLowerCase())
     const dosageMatch = selectedDosage === "" || med.dosage === selectedDosage
-    return nameMatch && dosageMatch
+    const legalCheck = med.legal !== false // Only show if legal is true or undefined
+    return nameMatch && dosageMatch && legalCheck
   })
 
   const formatPrice = (price?: number) => {
@@ -587,10 +624,24 @@ export default function MedicamentsPage() {
 
               return (
                 <Card key={med.id} className="overflow-hidden border border-primary-100 hover:shadow-xl transition-all">
-                  <div className="relative h-48 bg-gradient-to-br from-primary-500/10 to-primary-600/20 flex items-center justify-center">
-                    <div className="bg-white p-4 rounded-full">
-                      <Pill className="h-12 w-12 text-primary-500" />
-                    </div>
+                  <div className="relative h-48 bg-gradient-to-br from-primary-500/10 to-primary-600/20 flex items-center justify-center overflow-hidden">
+                    {med.image ? (
+                      <Image
+                        src={getImageUrl(med.image) || "/placeholder.svg"}
+                        alt={med.name}
+                        fill
+                        unoptimized
+                        className="object-cover transition-transform duration-500 hover:scale-105"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/placeholder.svg?height=300&width=500"
+                        }}
+                      />
+                    ) : (
+                      <div className="bg-white p-4 rounded-full">
+                        <Pill className="h-12 w-12 text-primary-500" />
+                      </div>
+                    )}
                     {med.price !== undefined && (
                       <Badge className="absolute top-4 right-4 bg-primary-500 text-white">
                         {formatPrice(med.price)}

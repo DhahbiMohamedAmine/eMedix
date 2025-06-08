@@ -29,7 +29,7 @@ interface Patient {
   nom: string
   prenom: string
   email: string
-  phone: string
+  telephone: string
 }
 
 interface PrescriptionFormProps {
@@ -180,7 +180,7 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
                   </div>
                   <div className="flex items-center">
                     <span className="font-medium text-gray-700 w-20">Phone:</span>
-                    <span className="text-gray-900">{patient.phone}</span>
+                    <span className="text-gray-900">{patient.telephone}</span>
                   </div>
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default function PrescriptionForm({ isOpen, appointment, onClose }: Presc
 
                           {medicament.price && (
                             <p className="text-sm text-gray-600 mt-2">
-                              Price: <span className="font-medium">${medicament.price.toFixed(2)}</span>
+                              Price: <span className="font-medium">{medicament.price.toFixed(2)} DT</span>
                             </p>
                           )}
                         </div>

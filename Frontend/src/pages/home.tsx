@@ -8,6 +8,7 @@ export default function Home() {
   const aboutRef = useRef<HTMLElement | null>(null)
   const footerRef = useRef<HTMLElement | null>(null)
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const scrollToSection = (ref: React.RefObject<HTMLElement | null>) => {
     if (ref.current) {
       ref.current.scrollIntoView({ behavior: "smooth" })
@@ -96,45 +97,8 @@ export default function Home() {
           <div className="hidden md:block w-full md:w-auto" id="menu">
             <nav className="w-full bg-white md:bg-transparent rounded shadow-lg px-6 py-4 mt-4 text-center md:p-0 md:mt-0 md:shadow-none">
               <ul className="md:flex items-center">
-                <li>
-                  <Link
-                    className="py-2 inline-block md:text-white md:hidden lg:block font-semibold"
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      scrollToSection(aboutRef)
-                    }}
-                  >
-                    About Us
-                  </Link>
-                </li>
-                <li className="md:ml-4">
-                  <Link className="py-2 inline-block md:text-white md:px-2 font-semibold" href="#">
-                    Medicaments
-                  </Link>
-                </li>
-                <li className="md:ml-4">
-                  <Link className="py-2 inline-block md:text-white md:px-2 font-semibold" href="#">
-                    Profile
-                  </Link>
-                </li>
-                <li className="md:ml-4 md:hidden lg:block">
-                  <Link className="py-2 inline-block md:text-white md:px-2 font-semibold" href="#">
-                    Blog
-                  </Link>
-                </li>
-                <li className="md:ml-4">
-                  <Link
-                    className="py-2 inline-block md:text-white md:px-2 font-semibold"
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      scrollToSection(footerRef)
-                    }}
-                  >
-                    Contact Us
-                  </Link>
-                </li>
+
+
                 <li className="md:ml-6 mt-3 md:mt-0">
                   <Link
                     className="inline-block font-semibold px-4 py-2 text-white bg-blue-500 md:bg-transparent md:text-white border border-white rounded"

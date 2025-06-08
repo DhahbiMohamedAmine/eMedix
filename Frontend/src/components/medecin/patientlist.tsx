@@ -200,13 +200,6 @@ export default function PatientList() {
           <div className="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-cyan-600 to-teal-500">
             <div className="flex justify-between items-center">
               <h1 className="text-3xl font-semibold text-white">Patient Management</h1>
-              <button
-                className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-cyan-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
-                onClick={() => router.push("/medecin/add-patient")}
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Add New Patient
-              </button>
             </div>
           </div>
 

@@ -60,6 +60,7 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
   const [error, setError] = useState<string | null>(null)
   const [medications, setMedications] = useState<Medication[]>([])
   const [currentDate] = useState(new Date()) // Store today's date
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
   const printFrameRef = useRef<HTMLIFrameElement>(null)
   const router = useRouter()
 
@@ -199,18 +200,36 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
   const addMedicationsToCart = async () => {
     if (!medications || medications.length === 0) return
 
+    setIsAddingToCart(true)
+
     try {
+      // Get patient ID from localStorage
+      const patientData = localStorage.getItem("patientData")
+      if (!patientData) {
+        throw new Error("Patient data not found in localStorage")
+      }
+
+      const { patient_id } = JSON.parse(patientData)
+      if (!patient_id) {
+        throw new Error("Patient ID not found in patientData")
+      }
+
+      // Create cart items array
       const cartItems = medications.map((med) => ({
         medicament_id: med.id,
         quantity: 1,
       }))
 
+      // Make the API call with the correct structure
       const response = await fetch("http://localhost:8000/cart/addMany", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(cartItems),
+        body: JSON.stringify({
+          patient_id: patient_id,
+          items: cartItems,
+        }),
       })
 
       if (!response.ok) {
@@ -222,6 +241,8 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
     } catch (error) {
       console.error("Error adding medications to cart:", error)
       alert("Failed to add medications to cart")
+    } finally {
+      setIsAddingToCart(false)
     }
   }
 
@@ -573,10 +594,20 @@ export default function PrescriptionDetails({ prescriptionId, appointmentId, onC
                     </button>
                     <button
                       onClick={addMedicationsToCart}
+                      disabled={isAddingToCart}
                       className="bg-white text-green-600 hover:bg-green-50 rounded-md px-4 py-2 flex items-center transition-colors"
                     >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Add to Cart
+                      {isAddingToCart ? (
+                        <>
+                          <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Add to Cart
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={onClose}

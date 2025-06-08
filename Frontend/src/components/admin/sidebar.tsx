@@ -3,7 +3,7 @@
 import type React from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { LayoutDashboard, UserCog, Users, LogOut, Package, FileCheck } from "lucide-react"
+import { LayoutDashboard, UserCog, Users, LogOut, Package, FileCheck,  Pill} from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { useDictionary } from "@/components/admin/dictionary-provider"
 
@@ -69,6 +69,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
           icon={<FileCheck />}
           text={dictionary.dashboard.confirmations}
           active={isActive("confirmations")}
+        />
+        <SidebarLink
+          href="/admin/medicamentlist"
+          icon={< Pill />}
+          text={"medicaments"}
+          active={isActive("medicaments")}
         />
 
         {/* Logout button */}

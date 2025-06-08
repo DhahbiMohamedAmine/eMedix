@@ -448,16 +448,7 @@ export default function DentalApp() {
               >
                 Dental Chart
               </button>
-              <button
-                className={`px-6 py-4 font-medium text-sm transition-colors ${
-                  activeTab === "history"
-                    ? "text-teal-600 border-b-2 border-teal-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("history")}
-              >
-                Treatment History
-              </button>
+              
             </div>
           </div>
 

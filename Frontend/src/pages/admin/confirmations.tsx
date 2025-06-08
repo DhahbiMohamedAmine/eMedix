@@ -1,7 +1,10 @@
 "use client"
 import "../../../public/tailwind.css"
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Sidebar } from "@/components/admin/sidebar"
 import { DashboardHeader } from "@/components/admin/dashboard-header"
 import { LanguageProvider } from "@/contexts/language-context"
@@ -20,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   CheckCircle,
   XCircle,
@@ -34,10 +36,16 @@ import {
   Calendar,
   FileText,
   Clock,
+  Search,
+  UserPlus,
+  CheckCircle2,
+  CircleXIcon as XCircle2,
+  Eye,
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
 
 interface Doctor {
   id: number
@@ -64,6 +72,7 @@ export default function DoctorApprovalPage() {
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
     async function loadDictionaries() {
@@ -188,6 +197,27 @@ export default function DoctorApprovalPage() {
     }
   }
 
+  // Quick approve/reject directly from the table
+  const handleQuickApprove = async (doctorId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    await handleApproveDoctor(doctorId)
+  }
+
+  const handleQuickReject = async (doctorId: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    await handleRejectDoctor(doctorId)
+  }
+
+  // Filter doctors based on search term
+  const filteredDoctors = pendingDoctors.filter(
+    (doctor) =>
+      doctor.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.ville.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.grade.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
   if (loading || !dictionaries) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -202,7 +232,7 @@ export default function DoctorApprovalPage() {
         <DoctorApprovalContent
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
-          pendingDoctors={pendingDoctors}
+          pendingDoctors={filteredDoctors}
           selectedDoctor={selectedDoctor}
           isDialogOpen={isDialogOpen}
           setIsDialogOpen={setIsDialogOpen}
@@ -213,6 +243,10 @@ export default function DoctorApprovalPage() {
           handleViewDetails={handleViewDetails}
           handleApproveDoctor={handleApproveDoctor}
           handleRejectDoctor={handleRejectDoctor}
+          handleQuickApprove={handleQuickApprove}
+          handleQuickReject={handleQuickReject}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
         />
       </DictionaryProvider>
     </LanguageProvider>
@@ -233,6 +267,10 @@ function DoctorApprovalContent({
   handleViewDetails,
   handleApproveDoctor,
   handleRejectDoctor,
+  handleQuickApprove,
+  handleQuickReject,
+  searchTerm,
+  setSearchTerm,
 }: {
   isSidebarOpen: boolean
   setIsSidebarOpen: (open: boolean) => void
@@ -247,6 +285,10 @@ function DoctorApprovalContent({
   handleViewDetails: (doctor: Doctor) => void
   handleApproveDoctor: (doctorId: number) => void
   handleRejectDoctor: (doctorId: number) => void
+  handleQuickApprove: (doctorId: number, event: React.MouseEvent) => void
+  handleQuickReject: (doctorId: number, event: React.MouseEvent) => void
+  searchTerm: string
+  setSearchTerm: (term: string) => void
 }) {
   const dictionary = useDictionary()
 
@@ -257,39 +299,92 @@ function DoctorApprovalContent({
         <DashboardHeader onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 dark:bg-gray-900 dark:text-gray-100">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-                  {dictionary.dashboard.doctorApplications}
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">{dictionary.dashboard.reviewManage}</p>
+            {/* Header with stats */}
+            <div className="mb-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                <div>
+                  <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+                    {dictionary.dashboard.doctorApplications}
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-1">{dictionary.dashboard.reviewManage}</p>
+                </div>
+                <nav className="flex" aria-label="Breadcrumb">
+                  <ol className="inline-flex items-center space-x-1 md:space-x-3">
+                    <li className="inline-flex items-center">
+                      <Link href="/admin/dashboard" className="text-gray-500 hover:text-gray-700 text-sm">
+                        {dictionary.dashboard.dashboard}
+                      </Link>
+                    </li>
+                    <li>
+                      <div className="flex items-center">
+                        <span className="text-gray-400 mx-2">/</span>
+                        <span className="text-gray-500 text-sm">{dictionary.dashboard.doctorApplications}</span>
+                      </div>
+                    </li>
+                  </ol>
+                </nav>
               </div>
-              <nav className="flex" aria-label="Breadcrumb">
-                <ol className="inline-flex items-center space-x-1 md:space-x-3">
-                  <li className="inline-flex items-center">
-                    <Link href="/admin/dashboard" className="text-gray-500 hover:text-gray-700 text-sm">
-                      {dictionary.dashboard.dashboard}
-                    </Link>
-                  </li>
-                  <li>
-                    <div className="flex items-center">
-                      <span className="text-gray-400 mx-2">/</span>
-                      <span className="text-gray-500 text-sm">{dictionary.dashboard.doctorApplications}</span>
+
+              {/* Stats cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="bg-white shadow-sm border-l-4 border-l-blue-500">
+                  <CardContent className="p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Total Applications</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">{pendingDoctors.length}</p>
                     </div>
-                  </li>
-                </ol>
-              </nav>
+                    <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center">
+                      <UserPlus className="h-6 w-6 text-blue-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white shadow-sm border-l-4 border-l-green-500">
+                  <CardContent className="p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Approved Today</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+                    <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white shadow-sm border-l-4 border-l-red-500">
+                  <CardContent className="p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Rejected Today</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+                    <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center">
+                      <XCircle2 className="h-6 w-6 text-red-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gray-50 dark:bg-gray-800">
-                <div className="flex items-center justify-between">
+            {/* Main content card */}
+            <Card className="shadow-sm overflow-hidden">
+              <CardHeader className="bg-white dark:bg-gray-800 border-b p-4 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <CardTitle>{dictionary.dashboard.pendingDoctorApplications}</CardTitle>
-                    <CardDescription>{dictionary.dashboard.reviewApprove}</CardDescription>
+                    <CardTitle className="text-xl">{dictionary.dashboard.pendingDoctorApplications}</CardTitle>
+                    <CardDescription className="mt-1">{dictionary.dashboard.reviewApprove}</CardDescription>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search doctors..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 w-full md:w-64"
+                      />
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-50 text-yellow-700 border-yellow-200 self-start md:self-center px-3 py-1"
+                    >
                       {pendingDoctors.length} {dictionary.dashboard.pending}
                     </Badge>
                   </div>
@@ -297,95 +392,153 @@ function DoctorApprovalContent({
               </CardHeader>
               <CardContent className="p-0">
                 {pendingDoctors.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="bg-gray-50 p-4 rounded-full mb-4">
+                      <AlertCircle className="h-12 w-12 text-gray-400" />
+                    </div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                      {dictionary.dashboard.noPendingApplications}
+                      {searchTerm ? "No doctors match your search" : dictionary.dashboard.noPendingApplications}
                     </h3>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      {dictionary.dashboard.noApplicationsWaiting}
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-md">
+                      {searchTerm
+                        ? "Try adjusting your search terms or clear the search to see all pending applications."
+                        : dictionary.dashboard.noApplicationsWaiting}
                     </p>
+                    {searchTerm && (
+                      <Button variant="outline" className="mt-4" onClick={() => setSearchTerm("")}>
+                        Clear Search
+                      </Button>
+                    )}
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader className="bg-gray-50 dark:bg-gray-800">
-                      <TableRow>
-                        <TableHead className="font-semibold">{dictionary.dashboard.doctors}</TableHead>
-                        <TableHead className="font-semibold">{dictionary.dashboard.contact}</TableHead>
-                        <TableHead className="font-semibold">{dictionary.dashboard.qualifications}</TableHead>
-                        <TableHead className="font-semibold">{dictionary.dashboard.location}</TableHead>
-                        <TableHead className="font-semibold">{dictionary.dashboard.actions}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingDoctors.map((doctor) => (
-                        <TableRow key={doctor.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <TableCell className="font-medium">
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="border border-gray-200">
-                                <AvatarImage src={doctor.photo || ""} alt={`${doctor.nom} ${doctor.prenom}`} />
-                                <AvatarFallback className="bg-blue-50 text-blue-700">
-                                  {doctor.nom.charAt(0)}
-                                  {doctor.prenom.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium text-gray-900 dark:text-gray-100">
-                                  {doctor.nom} {doctor.prenom}
-                                </p>
-                                <Badge variant="secondary" className="mt-1">
-                                  {doctor.grade}
-                                </Badge>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Mail className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{doctor.email}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <Phone className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm text-gray-500">{doctor.telephone}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Award className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{doctor.diplome}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Building className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{doctor.ville}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm text-gray-500">{doctor.adresse}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDetails(doctor)}
-                              className="text-blue-600 hover:text-white hover:bg-blue-600 border-blue-200"
-                            >
-                              {dictionary.dashboard.viewDetails}
-                            </Button>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-gray-50 dark:bg-gray-800">
+                        <TableRow>
+                          <TableHead className="font-semibold w-1/4">{dictionary.dashboard.doctors}</TableHead>
+                          <TableHead className="font-semibold w-1/5">{dictionary.dashboard.contact}</TableHead>
+                          <TableHead className="font-semibold w-1/5">{dictionary.dashboard.qualifications}</TableHead>
+                          <TableHead className="font-semibold w-1/5">{dictionary.dashboard.location}</TableHead>
+                          <TableHead className="font-semibold w-1/5 text-right">
+                            {dictionary.dashboard.actions}
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingDoctors.map((doctor) => (
+                          <TableRow
+                            key={doctor.id}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                            onClick={() => handleViewDetails(doctor)}
+                          >
+                            <TableCell className="font-medium p-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border border-gray-200 shadow-sm">
+                                  {doctor.photo ? (
+                                    <Image
+                                      src={
+                                        doctor.photo?.startsWith("http")
+                                          ? doctor.photo
+                                          : `http://localhost:8000${doctor.photo}`
+                                      }
+                                      alt={`${doctor.nom} ${doctor.prenom}`}
+                                      width={48}
+                                      height={48}
+                                      className="h-full w-full object-cover"
+                                      unoptimized
+                                    />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-700 font-medium">
+                                      {doctor.nom.charAt(0)}
+                                      {doctor.prenom.charAt(0)}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900 dark:text-gray-100 text-base">
+                                    {doctor.nom} {doctor.prenom}
+                                  </p>
+                                  <Badge
+                                    variant="secondary"
+                                    className="mt-1 bg-blue-50 text-blue-700 border border-blue-100 font-medium"
+                                  >
+                                    {doctor.grade}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="p-4">
+                              <div className="flex items-center space-x-2 mb-1.5">
+                                <Mail className="h-4 w-4 text-blue-500" />
+                                <span className="text-sm text-gray-700">{doctor.email}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Phone className="h-4 w-4 text-green-500" />
+                                <span className="text-sm text-gray-600">{doctor.telephone}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="p-4">
+                              <div className="flex items-center space-x-2">
+                                <Award className="h-4 w-4 text-purple-500" />
+                                <span className="text-sm text-gray-700">{doctor.diplome}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="p-4">
+                              <div className="flex items-center space-x-2 mb-1.5">
+                                <Building className="h-4 w-4 text-amber-500" />
+                                <span className="text-sm text-gray-700">{doctor.ville}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="h-4 w-4 text-red-500" />
+                                <span className="text-sm text-gray-600 truncate max-w-[200px]">{doctor.adresse}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="p-4 text-right">
+                              <div className="flex items-center justify-end space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleViewDetails(doctor)
+                                  }}
+                                  className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  {dictionary.dashboard.viewDetails}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={(e) => handleQuickReject(doctor.id, e)}
+                                  className="bg-white hover:bg-red-50 text-red-600 border-red-200 h-8 w-8"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={(e) => handleQuickApprove(doctor.id, e)}
+                                  className="bg-white hover:bg-green-50 text-green-600 border-green-200 h-8 w-8"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
-              <CardFooter className="bg-gray-50 dark:bg-gray-800 flex justify-between py-3">
-                <div className="text-sm text-gray-500">
-                  {dictionary.dashboard.showingApplications.replace("{0}", pendingDoctors.length.toString())}
-                </div>
-              </CardFooter>
+              {pendingDoctors.length > 0 && (
+                <CardFooter className="bg-gray-50 dark:bg-gray-800 flex justify-between py-3 px-4 border-t">
+                  <div className="text-sm text-gray-500">
+                    {dictionary.dashboard.showingApplications.replace("{0}", pendingDoctors.length.toString())}
+                  </div>
+                </CardFooter>
+              )}
             </Card>
           </div>
         </main>
@@ -414,16 +567,27 @@ function DoctorApprovalContent({
             <div className="p-6 bg-white">
               <div className="flex flex-col md:flex-row gap-6 mb-6">
                 <div className="flex flex-col items-center md:items-start">
-                  <Avatar className="h-24 w-24 border-2 border-gray-200">
-                    <AvatarImage
-                      src={selectedDoctor.photo || ""}
-                      alt={`${selectedDoctor.nom} ${selectedDoctor.prenom}`}
-                    />
-                    <AvatarFallback className="text-xl bg-blue-50 text-blue-700">
-                      {selectedDoctor.nom.charAt(0)}
-                      {selectedDoctor.prenom.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="h-24 w-24 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-200 shadow-md">
+                    {selectedDoctor.photo ? (
+                      <Image
+                        src={
+                          selectedDoctor.photo?.startsWith("http")
+                            ? selectedDoctor.photo
+                            : `http://localhost:8000${selectedDoctor.photo}`
+                        }
+                        alt={`${selectedDoctor.nom} ${selectedDoctor.prenom}`}
+                        width={96}
+                        height={96}
+                        className="h-full w-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-700 text-xl">
+                        {selectedDoctor.nom.charAt(0)}
+                        {selectedDoctor.prenom.charAt(0)}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex-1 text-center md:text-left">
                   <h3 className="text-2xl font-semibold text-gray-900">
@@ -528,10 +692,6 @@ function DoctorApprovalContent({
                             <dt className="text-sm font-normal text-gray-500">{dictionary.dashboard.grade}</dt>
                             <dd className="text-sm font-medium mt-1 text-gray-900">{selectedDoctor.grade}</dd>
                           </div>
-                          <div>
-                            <dt className="text-sm font-normal text-gray-500">ID</dt>
-                            <dd className="text-sm font-medium mt-1 text-gray-900">{selectedDoctor.medecin_id}</dd>
-                          </div>
                         </dl>
                       </CardContent>
                     </Card>
@@ -600,10 +760,6 @@ function DoctorApprovalContent({
                           <Badge className="bg-blue-50 text-blue-700 border-0">{selectedDoctor.grade}</Badge>
                         </div>
                         <Separator />
-                        <div>
-                          <h4 className="font-medium mb-2 text-gray-900">Medical ID</h4>
-                          <p className="text-gray-700">{selectedDoctor.medecin_id}</p>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>

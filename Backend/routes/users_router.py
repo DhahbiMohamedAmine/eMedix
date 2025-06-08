@@ -374,3 +374,84 @@ async def get_patients_by_doctor(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving patients: {e}")
+
+@router.delete("/patient/{patient_id}")
+async def delete_patient(patient_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # First, get the patient to find the associated user_id
+        patient_query = select(PatientModel).filter(PatientModel.id == patient_id)
+        patient_result = await db.execute(patient_query)
+        patient = patient_result.scalar_one_or_none()
+
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        
+        user_id = patient.user_id
+        
+        # Delete appointments associated with this patient
+        appointments_query = select(AppointmentModel).filter(AppointmentModel.patient_id == patient_id)
+        appointments_result = await db.execute(appointments_query)
+        appointments = appointments_result.scalars().all()
+        
+        for appointment in appointments:
+            await db.delete(appointment)
+        
+        # Delete the patient
+        await db.delete(patient)
+        
+        # Delete the associated user
+        user_query = select(UserModel).filter(UserModel.id == user_id)
+        user_result = await db.execute(user_query)
+        user = user_result.scalar_one_or_none()
+        
+        if user:
+            await db.delete(user)
+        
+        await db.commit()
+        
+        return {"message": "Patient deleted successfully"}
+    
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting patient: {str(e)}")
+
+@router.delete("/medecin/{medecin_id}")
+async def delete_medecin(medecin_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # First, get the medecin to find the associated user_id
+        medecin_query = select(MedcineModel).filter(MedcineModel.id == medecin_id)
+        medecin_result = await db.execute(medecin_query)
+        medecin = medecin_result.scalar_one_or_none()
+
+        if not medecin:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+        
+        user_id = medecin.user_id
+        
+        # Check if there are appointments associated with this doctor
+        appointments_query = select(AppointmentModel).filter(AppointmentModel.medecin_id == medecin_id)
+        appointments_result = await db.execute(appointments_query)
+        appointments = appointments_result.scalars().all()
+        
+        # Delete all associated appointments
+        for appointment in appointments:
+            await db.delete(appointment)
+        
+        # Delete the medecin
+        await db.delete(medecin)
+        
+        # Delete the associated user
+        user_query = select(UserModel).filter(UserModel.id == user_id)
+        user_result = await db.execute(user_query)
+        user = user_result.scalar_one_or_none()
+        
+        if user:
+            await db.delete(user)
+        
+        await db.commit()
+        
+        return {"message": "Doctor deleted successfully"}
+    
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting doctor: {str(e)}")

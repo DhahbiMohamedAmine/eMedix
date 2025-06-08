@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Sidebar } from "@/components/admin/sidebar"
 import { DashboardHeader } from "@/components/admin/dashboard-header"
 import { LanguageProvider } from "@/contexts/language-context"
@@ -19,8 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CheckCircle, XCircle, User, AlertCircle } from "lucide-react"
+import { CheckCircle, XCircle, AlertCircle } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 
 interface Doctor {
@@ -134,19 +134,18 @@ export default function DoctorApprovalPage() {
   const handleRejectDoctor = async (doctorId: number) => {
     setIsRejecting(true)
     try {
-      const response = await fetch("http://localhost:8000/auth/admin/approve-doctor", {
-        method: "POST",
+      const response = await fetch("http://localhost:8000/auth/admin/delete-doctor", {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           doctor_id: doctorId,
-          approved: false,
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to reject doctor")
+        throw new Error("Failed to delete doctor")
       }
 
       // Remove the rejected doctor from the list
@@ -155,14 +154,14 @@ export default function DoctorApprovalPage() {
 
       toast({
         title: "Success",
-        description: "Doctor application has been rejected",
+        description: "Doctor has been completely removed from the system",
         variant: "default",
       })
     } catch (error) {
-      console.error("Error rejecting doctor:", error)
+      console.error("Error deleting doctor:", error)
       toast({
         title: "Error",
-        description: "Failed to reject doctor application",
+        description: "Failed to delete doctor from the system",
         variant: "destructive",
       })
     } finally {
@@ -238,12 +237,27 @@ export default function DoctorApprovalPage() {
                             <TableRow key={doctor.id}>
                               <TableCell className="font-medium">
                                 <div className="flex items-center space-x-3">
-                                  <Avatar>
-                                    <AvatarImage src={doctor.photo || ""} alt={`${doctor.nom} ${doctor.prenom}`} />
-                                    <AvatarFallback>
-                                      <User className="h-4 w-4" />
-                                    </AvatarFallback>
-                                  </Avatar>
+                                  <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200">
+                                    {doctor.photo ? (
+                                      <Image
+                                        src={
+                                          doctor.photo?.startsWith("http")
+                                            ? doctor.photo
+                                            : `http://localhost:8000${doctor.photo}`
+                                        }
+                                        alt={`${doctor.nom} ${doctor.prenom}`}
+                                        width={40}
+                                        height={40}
+                                        className="h-full w-full object-cover"
+                                        unoptimized
+                                      />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-500">
+                                        {doctor.nom.charAt(0)}
+                                        {doctor.prenom.charAt(0)}
+                                      </div>
+                                    )}
+                                  </div>
                                   <div>
                                     <p className="font-medium">
                                       {doctor.nom} {doctor.prenom}
@@ -293,16 +307,27 @@ export default function DoctorApprovalPage() {
 
               <div className="grid gap-6 py-4">
                 <div className="flex items-center space-x-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage
-                      src={selectedDoctor.photo || ""}
-                      alt={`${selectedDoctor.nom} ${selectedDoctor.prenom}`}
-                    />
-                    <AvatarFallback className="text-lg">
-                      {selectedDoctor.nom.charAt(0)}
-                      {selectedDoctor.prenom.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-200">
+                    {selectedDoctor.photo ? (
+                      <Image
+                        src={
+                          selectedDoctor.photo?.startsWith("http")
+                            ? selectedDoctor.photo
+                            : `http://localhost:8000${selectedDoctor.photo}`
+                        }
+                        alt={`${selectedDoctor.nom} ${selectedDoctor.prenom}`}
+                        width={64}
+                        height={64}
+                        className="h-full w-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-500 text-lg">
+                        {selectedDoctor.nom.charAt(0)}
+                        {selectedDoctor.prenom.charAt(0)}
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <h3 className="text-xl font-semibold">
                       {selectedDoctor.nom} {selectedDoctor.prenom}

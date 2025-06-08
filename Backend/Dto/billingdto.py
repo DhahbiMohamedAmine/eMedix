@@ -18,6 +18,5 @@ class BillingOut(BillingBase):
     id: int
     cart_id: Optional[int]
 
-    class Config:
-        orm_mode = True
+    
 

@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 import os
 from Dto.logindto import LoginRequest, ResetPasswordRequest, ResetPassword
 from dotenv import load_dotenv
-from sqlalchemy import select, update
+from sqlalchemy import select, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 import smtplib
 import bcrypt
@@ -274,6 +274,50 @@ async def approve_doctor(request: DoctorApprovalRequest, db: AsyncSession = Depe
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update doctor status: {str(e)}")
 
+class DoctorDeleteRequest(BaseModel):
+    doctor_id: int
+
+@router.delete("/admin/delete-doctor")
+async def delete_doctor(request: DoctorDeleteRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Completely remove a doctor from the system
+    """
+    try:
+        # Find the user to get their email before deletion
+        result = await db.execute(select(User).where(User.id == request.doctor_id))
+        user = result.scalars().first()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+        
+        if user.role != "medecin":
+            raise HTTPException(status_code=400, detail="User is not a doctor")
+        
+        # Store email for sending notification later
+        doctor_email = user.email
+        
+        # Execute raw SQL to delete records
+        # First delete from medecins table
+        await db.execute(text("DELETE FROM medecins WHERE user_id = :user_id").bindparams(user_id=request.doctor_id))
+        
+        # Then delete from users table
+        await db.execute(text("DELETE FROM users WHERE id = :user_id").bindparams(user_id=request.doctor_id))
+        
+        # Commit the changes
+        await db.commit()
+        
+        # Send rejection email to the doctor
+        try:
+            send_rejection_email(doctor_email)
+        except Exception as email_error:
+            print(f"Failed to send rejection email: {email_error}")
+        
+        return {"message": "Doctor has been completely removed from the system"}
+    except Exception as e:
+        await db.rollback()
+        print(f"Error deleting doctor: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete doctor: {str(e)}")
+
 def send_approval_email(to_email: str):
     sender_email = os.getenv("EMAIL_SENDER")
     sender_password = os.getenv("EMAIL_PASSWORD")
@@ -541,4 +585,3 @@ async def reset_password(data: ResetPassword, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=400, detail="Invalid reset token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
-

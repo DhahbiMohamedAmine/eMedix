@@ -56,7 +56,16 @@ export function PatientsByAge() {
         datasets: [
           {
             data: ageData.map((b) => b.count),
-            backgroundColor: ["#22c55e", "#16a34a", "#15803d", "#166534", "#14532d"],
+            backgroundColor: [
+                "#f59e0b", // Amber
+                "#3b82f6",
+                "#ef4444", // Red
+                "#10b981", // Teal
+                "#8b5cf6", // Purple
+                "#ec4899", // Pink
+                "#f97316", // Orange
+                "#22d3ee", // Cyan
+              ],
             borderWidth: 0,
           },
         ],

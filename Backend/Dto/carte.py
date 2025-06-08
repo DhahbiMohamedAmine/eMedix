@@ -15,8 +15,7 @@ class MedicamentInCart(BaseModel):
     name: str
     price: float
 
-    class Config:
-        orm_mode = True
+    
 
 
 class MedicamentItem(BaseModel):
@@ -41,5 +40,4 @@ class CartOut(BaseModel):
     medicaments: List[MedicamentInCart]
     is_paid: bool = False
     
-    class Config:
-        orm_mode = True
+    

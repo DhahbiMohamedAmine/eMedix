@@ -12,26 +12,44 @@ from database import get_db
 
 router = APIRouter()
 
-# Create or update prescription for an appointment
 @router.post("/{appointment_id}", response_model=PrescriptionOut)
 async def create_or_update_prescription(
     appointment_id: int, 
     prescription_data: PrescriptionCreate,
     db: AsyncSession = Depends(get_db)
 ):
+    # First, validate medicament IDs before any database operations
+    # This will catch invalid IDs early and return a 400 error
+    if not prescription_data.medicament_ids:
+        raise HTTPException(status_code=400, detail="No medicaments provided")
+    
     try:
         # Check if the prescription already exists for the appointment
         result = await db.execute(select(Prescription).filter(Prescription.appointment_id == appointment_id))
         existing_prescription = result.scalars().first()
         
-        # Get medicaments based on the provided IDs
-        medicament_result = await db.execute(select(Medicament).filter(Medicament.id.in_(prescription_data.medicament_ids)))
-        medicaments = medicament_result.scalars().all()
+        # Query for medicaments one by one to identify which ones don't exist
+        found_medicaments = []
+        missing_ids = []
         
-        # Check if all medicaments were found
-        if len(medicaments) != len(prescription_data.medicament_ids):
-            raise HTTPException(status_code=400, detail="Some medicaments not found")
-
+        for med_id in prescription_data.medicament_ids:
+            try:
+                med_result = await db.execute(select(Medicament).filter(Medicament.id == med_id))
+                medicament = med_result.scalars().first()
+                if medicament:
+                    found_medicaments.append(medicament)
+                else:
+                    missing_ids.append(med_id)
+            except Exception:
+                missing_ids.append(med_id)
+        
+        # If any medicaments are missing, return a 400 error
+        if missing_ids:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Medicaments not found: {', '.join(map(str, missing_ids))}"
+            )
+        
         if existing_prescription:
             # If a prescription exists, update it
             existing_prescription.content = prescription_data.content
@@ -44,7 +62,7 @@ async def create_or_update_prescription(
             )
             
             # Add new associations
-            for medicament in medicaments:
+            for medicament in found_medicaments:
                 await db.execute(
                     insert(prescription_medicament).values(
                         prescription_id=existing_prescription.id,
@@ -79,7 +97,7 @@ async def create_or_update_prescription(
             await db.refresh(new_prescription)
             
             # Add medicaments using the association table
-            for medicament in medicaments:
+            for medicament in found_medicaments:
                 await db.execute(
                     insert(prescription_medicament).values(
                         prescription_id=new_prescription.id,
@@ -93,12 +111,16 @@ async def create_or_update_prescription(
                 id=new_prescription.id,
                 content=new_prescription.content,
                 appointment_id=new_prescription.appointment_id,
-                medicament_ids=[m.id for m in medicaments]
+                medicament_ids=[m.id for m in found_medicaments]
             )
+    except HTTPException:
+        # Re-raise HTTP exceptions to preserve their status codes
+        raise
     except Exception as e:
+        # For debugging, print the actual error
+        print(f"ERROR: {str(e)}")
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
 # Get all prescriptions
 @router.get("/", response_model=List[PrescriptionOut])
 async def get_all_prescriptions(db: AsyncSession = Depends(get_db)):
