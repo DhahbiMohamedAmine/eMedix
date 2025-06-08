@@ -16,9 +16,9 @@ interface UserData {
   role: string
   photo: string
   access_token: string
-  patient_id?: number // Added patient_id
+  patient_id?: number
   date_naissance?: string
-  medecin_id?: number // Added medecin_id
+  medecin_id?: number
   adresse?: string
   diplome?: string
   grade?: string
@@ -52,10 +52,11 @@ export default function Login() {
         // Store all user data in localStorage
         localStorage.setItem("user", JSON.stringify(userData))
 
-        // Store role-specific data
+        // Store role-specific data and update individual IDs
         switch (userData.role) {
           case "patient":
             if (userData.patient_id && userData.date_naissance) {
+              // Store patient data object
               localStorage.setItem(
                 "patientData",
                 JSON.stringify({
@@ -63,11 +64,14 @@ export default function Login() {
                   date_naissance: userData.date_naissance,
                 }),
               )
+              // Update the standalone patientId
+              localStorage.setItem("patientId", userData.patient_id.toString())
             }
             router.push("/patient/doctorlist")
             break
           case "medecin":
             if (userData.medecin_id) {
+              // Store medecin data object
               localStorage.setItem(
                 "medecinData",
                 JSON.stringify({
@@ -78,6 +82,8 @@ export default function Login() {
                   annee_experience: userData.annee_experience,
                 }),
               )
+              // Update the standalone doctorId
+              localStorage.setItem("doctorId", userData.medecin_id.toString())
             }
             router.push("/medecin/Calendar")
             break
@@ -138,7 +144,7 @@ export default function Login() {
                   name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -152,7 +158,7 @@ export default function Login() {
                   name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -161,13 +167,16 @@ export default function Login() {
                   Forgot your password?
                 </Link>
               </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              <button
+                type="submit"
+                className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium"
+              >
                 Sign in
               </button>
             </form>
             <p className="mt-6 text-center text-sm text-gray-600">
               Don t have an account?{" "}
-              <Link href="/register" className="text-blue-600">
+              <Link href="/register" className="text-blue-600 hover:text-blue-500">
                 Sign up
               </Link>
             </p>

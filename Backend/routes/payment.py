@@ -16,6 +16,6 @@ async def create_payment_intent(payment: PaymentRequest):
     intent = stripe.PaymentIntent.create(
         amount=payment.amount,
         currency="usd",
-        automatic_payment_methods={"enabled": True},
+        payment_method_types=["card"],
     )
     return {"clientSecret": intent.client_secret}

@@ -60,6 +60,21 @@ class MedcinResponse(BaseModel):
     grade: Optional[str] 
     ville: Optional[str]  
 
+
+class MedcinResponse1(BaseModel):
+    id: int
+    nom: str
+    user_id: int
+    prenom: str
+    telephone: str
+    email: str
+    photo: Optional[str] 
+    adresse: Optional[str]
+    diplome: Optional[str] 
+    grade: Optional[str] 
+    ville: Optional[str] 
+    isverified : bool
+    
 class PatientResponse(BaseModel):
     id: int
     user_id: int

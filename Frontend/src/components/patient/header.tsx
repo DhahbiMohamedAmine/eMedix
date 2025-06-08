@@ -270,6 +270,7 @@ export default function HeaderComponent() {
     localStorage.removeItem("token")
     localStorage.removeItem("user")
     localStorage.removeItem("patientData")
+    localStorage.removeItem("patientid")
     // Don't remove notifications on logout so they persist between sessions
     // localStorage.removeItem("appointmentNotifications")
     router.push("/login")

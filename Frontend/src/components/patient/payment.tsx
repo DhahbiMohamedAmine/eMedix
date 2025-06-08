@@ -44,6 +44,7 @@ export default function PaymentPage() {
       body: JSON.stringify({
         amount: amountInCents,
         cart_id: cartId ? Number.parseInt(cartId) : null,
+        payment_method_types: ["card"], // Still send this in case backend supports it
       }),
     })
       .then(async (res) => {
@@ -69,7 +70,16 @@ export default function PaymentPage() {
   const options = {
     clientSecret,
     appearance: {
-      theme: "stripe",
+      theme: "stripe" as const,
+      variables: {
+        colorPrimary: "#3b82f6",
+        colorBackground: "#ffffff",
+        colorText: "#1f2937",
+        colorDanger: "#ef4444",
+        fontFamily: "system-ui, sans-serif",
+        spacingUnit: "4px",
+        borderRadius: "8px",
+      },
     },
   }
 
@@ -187,6 +197,37 @@ function CheckoutForm({ total, cartId }: { total: string | null; cartId: string 
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
 
+  // Add CSS to hide unwanted payment methods
+  useEffect(() => {
+    const style = document.createElement("style")
+    style.textContent = `
+      /* Hide Amazon Pay and Cash App payment methods */
+      .p-PaymentMethodSelector-item[data-testid*="amazonpay"],
+      .p-PaymentMethodSelector-item[data-testid*="cashapp"],
+      .p-PaymentMethodSelector-item[data-testid*="amazon"],
+      .p-PaymentMethodSelector-item[data-testid*="cash"],
+      [data-testid*="amazonpay"],
+      [data-testid*="cashapp"],
+      [data-testid*="amazon-pay"],
+      [data-testid*="cash-app"] {
+        display: none !important;
+      }
+      
+      /* Hide any payment method that contains Amazon or Cash App text */
+      .p-PaymentMethodSelector-item:has([alt*="Amazon"]),
+      .p-PaymentMethodSelector-item:has([alt*="Cash App"]),
+      .p-PaymentMethodSelector-item:has([title*="Amazon"]),
+      .p-PaymentMethodSelector-item:has([title*="Cash App"]) {
+        display: none !important;
+      }
+    `
+    document.head.appendChild(style)
+
+    return () => {
+      document.head.removeChild(style)
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -218,7 +259,27 @@ function CheckoutForm({ total, cartId }: { total: string | null; cartId: string 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+      <PaymentElement
+        options={{
+          layout: "tabs",
+          paymentMethodOrder: ["card"],
+          fields: {
+            billingDetails: {
+              name: "auto",
+              email: "auto",
+              phone: "auto",
+              address: {
+                country: "auto",
+                line1: "auto",
+                line2: "auto",
+                city: "auto",
+                state: "auto",
+                postalCode: "auto",
+              },
+            },
+          },
+        }}
+      />
       {paymentError && <div className="text-red-500 text-sm">{paymentError}</div>}
       <Button type="submit" disabled={!stripe || isProcessing} className="w-full bg-primary-500 hover:bg-primary-600">
         {isProcessing ? (

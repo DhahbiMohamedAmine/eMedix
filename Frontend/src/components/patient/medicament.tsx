@@ -659,7 +659,7 @@ export default function MedicamentsPage() {
                       {med.dosage && <Badge className="mt-1 bg-primary-100 text-primary-700">{med.dosage}</Badge>}
                       {med.stock !== undefined && (
                         <p className={`mt-1 text-sm font-medium ${outOfStock ? "text-red-500" : "text-green-600"}`}>
-                          {outOfStock ? "Out of stock" : `In stock: ${med.stock}`}
+                          {outOfStock ? "Out of stock" : `In stock`}
                         </p>
                       )}
                     </div>

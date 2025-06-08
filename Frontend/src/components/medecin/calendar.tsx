@@ -4,7 +4,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { ChevronLeft, ChevronRight, User, FileText, Calendar, CheckCircle, AlertCircle, X } from "lucide-react"
 import Header from "./header"
 import Footer from "../footer"
@@ -82,7 +82,10 @@ export default function AppointmentCalendar() {
   const [viewMode, setViewMode] = useState<"week" | "month">("week")
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [processedAppointments, setProcessedAppointments] = useState<Set<number>>(new Set())
+
+  // Use refs to track processed notifications to prevent duplicates
+  const processedNotificationsRef = useRef<Set<string>>(new Set())
+  const lastAppointmentStatusRef = useRef<Map<number, string>>(new Map())
 
   // Notifications state
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -154,111 +157,68 @@ export default function AppointmentCalendar() {
     }
   }
 
-  // Function to handle new appointment notifications for doctors
-  const handleNewAppointmentNotification = (appointmentId: number) => {
-    try {
-      // Get the appointment details
-      const appointment = appointments.find((a) => a.id === appointmentId)
-      if (!appointment) return
+  // Improved function to handle doctor notifications with better deduplication
+  const createDoctorNotification = useCallback(
+    (
+      appointmentId: number,
+      type: "new" | "cancelled" | "confirmed" | "modified",
+      patientId: number,
+      appointmentDate: string,
+    ) => {
+      try {
+        // Create a unique key for this notification
+        const notificationKey = `${appointmentId}-${type}`
 
-      // Check if we've already processed this appointment
-      if (processedAppointments.has(appointmentId)) {
-        return
+        // Check if we've already processed this notification
+        if (processedNotificationsRef.current.has(notificationKey)) {
+          console.log(`Notification ${notificationKey} already processed, skipping`)
+          return
+        }
+
+        // Create a notification object for the doctor
+        const notification = {
+          appointmentId,
+          type,
+          read: false,
+          dismissed: false,
+          timestamp: Date.now(),
+          patientId,
+          appointmentDate,
+        }
+
+        // Store the notification in localStorage
+        const storedNotifications = localStorage.getItem("doctorAppointmentNotifications") || "[]"
+        const parsedNotifications = JSON.parse(storedNotifications)
+
+        // Check if a notification for this appointment and type already exists
+        const existingNotificationIndex = parsedNotifications.findIndex(
+          (n: any) => n.appointmentId === appointmentId && n.type === type,
+        )
+
+        // Only add if it doesn't exist
+        if (existingNotificationIndex === -1) {
+          // Add the new notification
+          parsedNotifications.push(notification)
+
+          // Save back to localStorage
+          localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(parsedNotifications))
+
+          // Dispatch an event to notify other components
+          window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
+
+          console.log(`Created ${type} appointment notification for doctor for appointment ${appointmentId}`)
+
+          // Mark this notification as processed
+          processedNotificationsRef.current.add(notificationKey)
+        } else {
+          console.log(`Notification for appointment ${appointmentId} and type ${type} already exists`)
+        }
+      } catch (error) {
+        console.error("Error creating doctor notification:", error)
       }
-
-      // Create a notification object for the doctor
-      const notification = {
-        appointmentId,
-        type: "new",
-        read: false,
-        dismissed: false,
-        timestamp: Date.now(),
-        patientId: appointment.patient_id,
-        appointmentDate: appointment.date,
-      }
-
-      // Store the notification in localStorage
-      const storedNotifications = localStorage.getItem("doctorAppointmentNotifications") || "[]"
-      const parsedNotifications = JSON.parse(storedNotifications)
-
-      // Check if a notification for this appointment already exists
-      const existingNotificationIndex = parsedNotifications.findIndex(
-        (n: any) => n.appointmentId === appointmentId && n.type === "new",
-      )
-
-      // Only add if it doesn't exist
-      if (existingNotificationIndex === -1) {
-        // Add the new notification
-        parsedNotifications.push(notification)
-
-        // Save back to localStorage
-        localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(parsedNotifications))
-
-        // Dispatch an event to notify other components
-        window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
-
-        console.log(`Created new appointment notification for doctor for appointment ${appointmentId}`)
-      }
-
-      // Mark this appointment as processed
-      setProcessedAppointments((prev) => new Set([...prev, appointmentId]))
-    } catch (error) {
-      console.error("Error creating new appointment notification:", error)
-    }
-  }
-
-  // Function to handle cancelled appointment notifications for doctors
-  const handleCancelledAppointmentNotification = (appointmentId: number) => {
-    try {
-      // Get the appointment details
-      const appointment = appointments.find((a) => a.id === appointmentId)
-      if (!appointment) return
-
-      // Check if we've already processed this appointment
-      if (processedAppointments.has(appointmentId)) {
-        return
-      }
-
-      // Create a notification object for the doctor
-      const notification = {
-        appointmentId,
-        type: "cancelled",
-        read: false,
-        dismissed: false,
-        timestamp: Date.now(),
-        patientId: appointment.patient_id,
-        appointmentDate: appointment.date,
-      }
-
-      // Store the notification in localStorage
-      const storedNotifications = localStorage.getItem("doctorAppointmentNotifications") || "[]"
-      const parsedNotifications = JSON.parse(storedNotifications)
-
-      // Check if a notification for this appointment already exists
-      const existingNotificationIndex = parsedNotifications.findIndex(
-        (n: any) => n.appointmentId === appointmentId && n.type === "cancelled",
-      )
-
-      // Only add if it doesn't exist
-      if (existingNotificationIndex === -1) {
-        // Add the new notification
-        parsedNotifications.push(notification)
-
-        // Save back to localStorage
-        localStorage.setItem("doctorAppointmentNotifications", JSON.stringify(parsedNotifications))
-
-        // Dispatch an event to notify other components
-        window.dispatchEvent(new Event("doctorAppointmentNotificationsUpdated"))
-
-        console.log(`Created cancelled appointment notification for doctor for appointment ${appointmentId}`)
-      }
-
-      // Mark this appointment as processed
-      setProcessedAppointments((prev) => new Set([...prev, appointmentId]))
-    } catch (error) {
-      console.error("Error creating cancelled appointment notification:", error)
-    }
-  }
+    },
+    [],
+  )
 
   // Fetch medecinId from localStorage
   useEffect(() => {
@@ -312,6 +272,55 @@ export default function AppointmentCalendar() {
     }
   }, [])
 
+  // Improved function to check for status changes and create notifications
+  const checkForStatusChanges = useCallback(
+    (newAppointments: Appointment[]) => {
+      newAppointments.forEach((appointment) => {
+        const previousStatus = lastAppointmentStatusRef.current.get(appointment.id)
+        const currentStatus = appointment.status
+
+        // If this is the first time we see this appointment, just record its status
+        if (previousStatus === undefined) {
+          lastAppointmentStatusRef.current.set(appointment.id, currentStatus)
+
+          // Only create notification for new appointments waiting for confirmation
+          if (currentStatus === "waiting for medecin confirmation") {
+            createDoctorNotification(appointment.id, "new", appointment.patient_id, appointment.date)
+          }
+          return
+        }
+
+        // If status has changed, create appropriate notification
+        if (previousStatus !== currentStatus) {
+          console.log(`Status changed for appointment ${appointment.id}: ${previousStatus} -> ${currentStatus}`)
+
+          // Update the stored status
+          lastAppointmentStatusRef.current.set(appointment.id, currentStatus)
+
+          // Create notifications based on status change
+          switch (currentStatus) {
+            case "waiting for medecin confirmation":
+              createDoctorNotification(appointment.id, "new", appointment.patient_id, appointment.date)
+              break
+            case "cancelled":
+              createDoctorNotification(appointment.id, "cancelled", appointment.patient_id, appointment.date)
+              break
+            case "confirmed":
+              // Only create notification if it was previously waiting for confirmation
+              if (previousStatus === "waiting for medecin confirmation") {
+                createPatientNotification(appointment.id, "confirmed")
+              }
+              break
+            case "finished":
+              createPatientNotification(appointment.id, "finished")
+              break
+          }
+        }
+      })
+    },
+    [createDoctorNotification],
+  )
+
   // Fetch appointments when medecinId is set
   useEffect(() => {
     if (!medecinId) return
@@ -319,17 +328,22 @@ export default function AppointmentCalendar() {
     const fetchAppointments = async () => {
       try {
         const response = await axios.get(`http://localhost:8000/appointments/medecin/${medecinId}`)
-        setAppointments(response.data) // Store the list of appointments
+        const appointmentsData = response.data
+
+        // Check for status changes and create notifications
+        checkForStatusChanges(appointmentsData)
+
+        setAppointments(appointmentsData) // Store the list of appointments
 
         // Check which appointments have prescriptions
-        checkPrescriptionsForAppointments(response.data)
+        checkPrescriptionsForAppointments(appointmentsData)
       } catch (err) {
         console.error(err)
       }
     }
 
     fetchAppointments()
-  }, [medecinId, checkPrescriptionsForAppointments])
+  }, [medecinId, checkPrescriptionsForAppointments, checkForStatusChanges])
 
   // Function to fetch patient information
   const fetchPatientInfo = async (patientId: number) => {
@@ -437,15 +451,10 @@ export default function AppointmentCalendar() {
     window.addEventListener("storage", handleStorageChange)
     window.addEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
 
-    // Poll for new notifications every 5 seconds
-    const interval = setInterval(loadNotifications, 5000)
-
     return () => {
       window.removeEventListener("storage", handleStorageChange)
       window.removeEventListener("doctorAppointmentNotificationsUpdated", handleCustomEvent)
-      clearInterval(interval)
     }
-
   }, [])
 
   // Add this useEffect to get the highlighted appointment ID from URL or localStorage
@@ -692,8 +701,6 @@ export default function AppointmentCalendar() {
         }
 
         // Make POST request to the backend endpoint
-
-
         const response = await fetch("http://localhost:8000/appointments/bydate", {
           method: "POST",
           headers: {
@@ -743,6 +750,10 @@ export default function AppointmentCalendar() {
         })
 
         const appointmentsData = transformedData
+
+        // Check for status changes and create notifications
+        checkForStatusChanges(appointmentsData)
+
         setAppointments(appointmentsData)
 
         // Check which appointments have prescriptions
@@ -755,12 +766,12 @@ export default function AppointmentCalendar() {
         setIsLoading(false)
       }
     },
-    [checkPrescriptionsForAppointments],
-  ) // Add checkPrescriptionsForAppointments to the dependency array
+    [checkPrescriptionsForAppointments, checkForStatusChanges],
+  )
 
   useEffect(() => {
     fetchAppointmentsByDate(selectedDate)
-  }, [selectedDate, fetchAppointmentsByDate]) // Added fetchAppointmentsByDate to dependencies
+  }, [selectedDate, fetchAppointmentsByDate])
 
   // Add an event listener for prescription creation
   useEffect(() => {
@@ -937,36 +948,6 @@ export default function AppointmentCalendar() {
         return "bg-gray-500 hover:bg-gray-600"
     }
   }
-
-  // Function to check for new appointments
-  const checkForNewAppointments = useCallback(() => {
-    // This would typically be an API call to check for new appointments
-    // For now, we'll just check if there are any appointments with status "waiting for medecin confirmation"
-    const newAppointments = appointments.filter((a) => a.status === "waiting for medecin confirmation")
-
-    // For each new appointment, create a notification for the doctor
-    newAppointments.forEach((appointment) => {
-      handleNewAppointmentNotification(appointment.id)
-    })
-  }, [appointments])
-
-  // Function to check for cancelled appointments
-  const checkForCancelledAppointments = useCallback(() => {
-    // This would typically be an API call to check for cancelled appointments
-    // For now, we'll just check if there are any appointments with status "cancelled"
-    const cancelledAppointments = appointments.filter((a) => a.status === "cancelled")
-
-    // For each cancelled appointment, create a notification for the doctor
-    cancelledAppointments.forEach((appointment) => {
-      handleCancelledAppointmentNotification(appointment.id)
-    })
-  }, [appointments])
-
-  // Use useEffect to check for new and cancelled appointments whenever the appointments state changes
-  useEffect(() => {
-    checkForNewAppointments()
-    checkForCancelledAppointments()
-  }, [appointments, checkForNewAppointments, checkForCancelledAppointments])
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-primary-50 to-neutral-100">
@@ -1480,7 +1461,7 @@ export default function AppointmentCalendar() {
               notification.type === "success"
                 ? "bg-green-50 text-green-800 border-l-4 border-green-500"
                 : notification.type === "error"
-                  ? "bg-red-50 text-red-800 border-l-4 border-red-500"
+                  ? "bg-re d-50 text-red-800 border-l-4 border-red-500"
                   : notification.type === "warning"
                     ? "bg-amber-50 text-amber-800 border-l-4 border-amber-500"
                     : "bg-blue-50 text-blue-800 border-l-4 border-blue-500"

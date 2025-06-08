@@ -27,6 +27,7 @@ interface Doctor {
   diplome: string
   grade: string
   ville: string
+  isverified: boolean // Added isverified field
 }
 
 export default function DoctorList() {
@@ -54,7 +55,9 @@ export default function DoctorList() {
           throw new Error("Failed to fetch doctors")
         }
         const data = await response.json()
-        setDoctors(data)
+        // Filter to only include verified doctors
+        const verifiedDoctors = data.filter((doctor: Doctor) => doctor.isverified === true)
+        setDoctors(verifiedDoctors)
       } catch (error) {
         console.error("Error fetching doctors:", error)
       } finally {
@@ -78,6 +81,7 @@ export default function DoctorList() {
     const fullName = `${doctor.nom} ${doctor.prenom}`.toLowerCase()
     const nameMatch = fullName.includes(searchTerm.toLowerCase())
     const cityMatch = selectedCity === "" || doctor.ville === selectedCity
+    // Since we already filtered for verified doctors in useEffect, we don't need to check again here
     return nameMatch && cityMatch
   })
 
@@ -114,7 +118,7 @@ export default function DoctorList() {
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Find Your Perfect Doctor</h1>
             <p className="text-primary-100 max-w-2xl mx-auto text-lg">
-              Browse our network of highly qualified healthcare professionals and book your appointment today
+              Browse our network of verified healthcare professionals and book your appointment today
             </p>
           </div>
         </div>
@@ -144,14 +148,24 @@ export default function DoctorList() {
               <label htmlFor="city-filter" className="text-sm font-medium text-neutral-700">
                 Location
               </label>
-              <Select value={selectedCity} onValueChange={setSelectedCity}>
-                <SelectTrigger id="city-filter" className="border-neutral-300 focus:ring-primary-500">
+              <Select value={selectedCity} onValueChange={(value) => setSelectedCity(value === "all" ? "" : value)}>
+                <SelectTrigger id="city-filter" className="border-neutral-300 focus:ring-primary-500 bg-white">
                   <SelectValue placeholder="All Cities" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cities</SelectItem>
+                <SelectContent
+                  className="bg-white border border-gray-200 shadow-lg z-50"
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  avoidCollisions={false}
+                  position="popper"
+                  style={{ transform: "translateY(0px)" }}
+                >
+                  <SelectItem value="all" className="bg-white hover:bg-gray-100 focus:bg-gray-100">
+                    All Cities
+                  </SelectItem>
                   {cities.map((city) => (
-                    <SelectItem key={city} value={city}>
+                    <SelectItem key={city} value={city} className="bg-white hover:bg-gray-100 focus:bg-gray-100">
                       {city}
                     </SelectItem>
                   ))}
@@ -178,8 +192,6 @@ export default function DoctorList() {
             </div>
           </div>
         </div>
-
-
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -294,9 +306,9 @@ export default function DoctorList() {
                 <div className="mx-auto w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mb-4">
                   <Search className="h-8 w-8 text-primary-400" />
                 </div>
-                <h3 className="text-xl font-medium text-neutral-800 mb-2">No doctors found</h3>
+                <h3 className="text-xl font-medium text-neutral-800 mb-2">No verified doctors found</h3>
                 <p className="text-neutral-500 max-w-md mx-auto mb-6">
-                  We couldn t find any doctors matching your search criteria. Please try different filters.
+                  We couldnt find any verified doctors matching your search criteria. Please try different filters.
                 </p>
                 <Button
                   variant="outline"

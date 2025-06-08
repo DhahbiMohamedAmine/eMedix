@@ -15,7 +15,7 @@ from models.patients import Patient as PatientModel
 from models.users import User as UserModel
 from models.medecins import Medecin as MedcineModel
 from database import get_db
-from Dto.userdto import PatientResponse, UserResponse , MedcinResponse,UpdateMedcinProfileRequest,UpdatePatientProfileRequest
+from Dto.userdto import PatientResponse, UserResponse , MedcinResponse,UpdateMedcinProfileRequest,UpdatePatientProfileRequest, MedcinResponse1
 
 router = APIRouter()
 def hash_password(password: str) -> str:
@@ -245,7 +245,7 @@ async def update_patient_details(
         raise HTTPException(status_code=500, detail=f"Error updating patient details: {str(e)}")
 
 
-@router.get("/medecins", response_model=list[MedcinResponse])
+@router.get("/medecins", response_model=list[MedcinResponse1])
 async def get_all_medecins(db: AsyncSession = Depends(get_db)):
     try:
         print("Fetching all medecins...")
@@ -264,7 +264,7 @@ async def get_all_medecins(db: AsyncSession = Depends(get_db)):
             raise HTTPException(status_code=404, detail="No medecins found")
 
         medecin_list = [
-            MedcinResponse(
+            MedcinResponse1(
                 id=med.id,
                 user_id=med.user_id,
                 nom=user.nom,
@@ -277,6 +277,7 @@ async def get_all_medecins(db: AsyncSession = Depends(get_db)):
                 diplome=med.diplome,
                 grade=med.grade,
                 ville=med.ville,
+                isverified = user.isverified,
             )
             for med, user in medecins
         ]

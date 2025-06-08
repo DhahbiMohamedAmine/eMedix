@@ -71,6 +71,9 @@ export function MedicamentsList() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false)
+  const [restockQuantity, setRestockQuantity] = useState<number>(0)
+  const [currentRestockMedicament, setCurrentRestockMedicament] = useState<Medicament | null>(null)
   const [currentMedicament, setCurrentMedicament] = useState<Medicament | null>(null)
   const [formData, setFormData] = useState<Partial<Medicament>>({
     name: "",
@@ -184,7 +187,7 @@ export function MedicamentsList() {
 
   useEffect(() => {
     fetchMedicaments()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Handle image error
@@ -475,6 +478,63 @@ export function MedicamentsList() {
     } catch (error) {
       console.error("Error deleting medicament:", error)
       showNotification(error instanceof Error ? error.message : "Failed to delete medication", "error")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const openRestockDialog = (medicament: Medicament) => {
+    setCurrentRestockMedicament(medicament)
+    setRestockQuantity(0)
+    setIsRestockDialogOpen(true)
+  }
+
+  const handleRestockMedicament = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!currentRestockMedicament || restockQuantity <= 0) {
+      showNotification("Please enter a valid quantity to restock", "error")
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+
+      const newStock = (currentRestockMedicament.stock || 0) + restockQuantity
+      const medicamentData = {
+        price: currentRestockMedicament.price || 0,
+        dosage: currentRestockMedicament.dosage || "",
+        stock: newStock,
+        image: currentRestockMedicament.image || "",
+        duration: currentRestockMedicament.duration || "",
+        legal: currentRestockMedicament.legal !== undefined ? currentRestockMedicament.legal : true,
+      }
+
+      const updateUrl = `${BACKEND_URL}/medicaments/${currentRestockMedicament.id}`
+      new URL(updateUrl) // Validate URL
+
+      const response = await fetch(updateUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(medicamentData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to restock medication")
+      }
+
+      const updatedMedicament = await response.json()
+      setMedicaments((prev) => prev.map((med) => (med.id === updatedMedicament.id ? updatedMedicament : med)))
+
+      showNotification(`${currentRestockMedicament.name} restocked successfully! Added ${restockQuantity} units.`)
+      setIsRestockDialogOpen(false)
+      setRestockQuantity(0)
+      setCurrentRestockMedicament(null)
+    } catch (error) {
+      console.error("Error restocking medicament:", error)
+      showNotification(error instanceof Error ? error.message : "Failed to restock medication", "error")
     } finally {
       setIsSubmitting(false)
     }
@@ -999,6 +1059,13 @@ export function MedicamentsList() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
+                              <button
+                                onClick={() => openRestockDialog(med)}
+                                className="p-1 rounded-md text-green-500 hover:bg-green-50"
+                                title="Restock"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1110,6 +1177,13 @@ export function MedicamentsList() {
                           className="p-1 rounded-md text-red-500 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => openRestockDialog(med)}
+                          className="p-1 rounded-md text-green-500 hover:bg-green-50"
+                          title="Restock"
+                        >
+                          <Plus className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -1741,6 +1815,83 @@ export function MedicamentsList() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Restock Medication Dialog */}
+      {isRestockDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">Restock Medication</h3>
+              <button onClick={() => setIsRestockDialogOpen(false)} className="text-gray-400 hover:text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleRestockMedicament}>
+              <div className="p-6 space-y-4">
+                <div className="text-center">
+                  <h4 className="text-lg font-medium text-gray-900">{currentRestockMedicament?.name}</h4>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Current stock: <span className="font-medium">{currentRestockMedicament?.stock || 0}</span> units
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="restock-quantity" className="block text-sm font-medium text-gray-700">
+                    Quantity to Add
+                  </label>
+                  <input
+                    id="restock-quantity"
+                    type="number"
+                    min="1"
+                    value={restockQuantity || ""}
+                    onChange={(e) => setRestockQuantity(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Enter quantity to add"
+                    required
+                  />
+                </div>
+
+                {restockQuantity > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <p className="text-sm text-green-800">
+                      New stock will be:{" "}
+                      <span className="font-medium">{(currentRestockMedicament?.stock || 0) + restockQuantity}</span>{" "}
+                      units
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRestockDialogOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || restockQuantity <= 0}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-70"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="inline mr-2 h-4 w-4 animate-spin" />
+                      Restocking...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="inline mr-2 h-4 w-4" />
+                      Restock
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

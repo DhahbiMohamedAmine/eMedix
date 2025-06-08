@@ -3,8 +3,11 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Header from "@/components/patient/header"
 import Footer from "@/components/footer"
-import { Calendar, Clock, MapPin, FileText } from "lucide-react"
+import { Calendar, Clock, MapPin, FileText, Filter, X } from "lucide-react"
 import PrescriptionDetails from "@/components/medecin/prescription-details" // Import the PrescriptionDetails component
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 interface Appointment {
   id: number
@@ -28,6 +31,7 @@ export default function AppointmentHistory() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null)
   const [showPrescription, setShowPrescription] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<string>("all") // New state for status filter
 
   // Fetch appointments and doctors data
   useEffect(() => {
@@ -149,13 +153,23 @@ export default function AppointmentHistory() {
     setSelectedAppointmentId(null)
   }
 
+  // Reset status filter
+  const resetStatusFilter = () => {
+    setStatusFilter("all")
+  }
+
   // Filter past appointments
-  const pastAppointments = appointments
+  const filteredAppointments = appointments
     .filter((appointment) => {
       // Filter for past appointments
       const appointmentDate = new Date(appointment.date)
       const now = new Date()
       return appointmentDate < now
+    })
+    .filter((appointment) => {
+      // Apply status filter
+      if (statusFilter === "all") return true
+      return appointment.status === statusFilter
     })
     .sort((a, b) => {
       // Sort by date (descending - newest first)
@@ -166,11 +180,17 @@ export default function AppointmentHistory() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "confirmed":
-      case "finished":
         return {
           bgColor: "bg-green-100",
           textColor: "text-green-800",
           dotColor: "bg-green-600",
+          label: "Confirmed",
+        }
+      case "finished":
+        return {
+          bgColor: "bg-blue-100",
+          textColor: "text-blue-800",
+          dotColor: "bg-blue-600",
           label: "Completed",
         }
       case "cancelled":
@@ -189,9 +209,9 @@ export default function AppointmentHistory() {
         }
       case "waiting for patient confirmation":
         return {
-          bgColor: "bg-blue-100",
-          textColor: "text-blue-800",
-          dotColor: "bg-blue-600",
+          bgColor: "bg-purple-100",
+          textColor: "text-purple-800",
+          dotColor: "bg-purple-600",
           label: "Pending Your Confirmation",
         }
       default:
@@ -203,6 +223,15 @@ export default function AppointmentHistory() {
         }
     }
   }
+
+  // Get unique status values for the filter
+  const statusOptions = [
+    { value: "all", label: "All Statuses" },
+    { value: "confirmed", label: "Confirmed" },
+    { value: "finished", label: "Completed" },
+    { value: "waiting for medecin confirmation", label: "Pending Doctor Confirmation" },
+    { value: "waiting for patient confirmation", label: "Pending Your Confirmation" },
+  ]
 
   return (
     <main className="w-full bg-gray-100 min-h-screen flex flex-col">
@@ -226,6 +255,65 @@ export default function AppointmentHistory() {
           </div>
 
           <div className="p-6">
+            {/* Status Filter */}
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl font-semibold text-gray-800">Past Appointments</h2>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="w-full sm:w-64">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="bg-white border-gray-300 focus:ring-blue-500">
+                        <div className="flex items-center gap-2">
+                          <Filter className="h-4 w-4 text-gray-500" />
+                          <SelectValue placeholder="Filter by status" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                        {statusOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="hover:bg-gray-100">
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {statusFilter !== "all" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetStatusFilter}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Clear filter</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Status filter indicator */}
+            {statusFilter !== "all" && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
+                    Status: {statusOptions.find((opt) => opt.value === statusFilter)?.label}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetStatusFilter}
+                      className="ml-2 h-4 w-4 p-0 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+                    >
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Clear filter</span>
+                    </Button>
+                  </Badge>
+                </div>
+              </div>
+            )}
+
             {/* Loading indicator */}
             {isLoading && (
               <div className="flex justify-center py-12">
@@ -233,24 +321,38 @@ export default function AppointmentHistory() {
               </div>
             )}
 
-            {!isLoading && pastAppointments.length === 0 ? (
+            {!isLoading && filteredAppointments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="rounded-full bg-blue-50 p-6 mb-4">
                   <Calendar className="h-12 w-12 text-blue-500" />
                 </div>
-                <p className="text-xl font-medium text-gray-800">No past appointments found</p>
-                <p className="text-sm text-gray-500 mt-2 max-w-md">
-                  Your medical history will appear here after your scheduled appointments have passed
+                <p className="text-xl font-medium text-gray-800">
+                  {statusFilter !== "all"
+                    ? `No appointments with status "${statusOptions.find((opt) => opt.value === statusFilter)?.label}" found`
+                    : "No past appointments found"}
                 </p>
+                <p className="text-sm text-gray-500 mt-2 max-w-md">
+                  {statusFilter !== "all"
+                    ? "Try selecting a different status filter"
+                    : "Your medical history will appear here after your scheduled appointments have passed"}
+                </p>
+                {statusFilter !== "all" && (
+                  <Button
+                    variant="outline"
+                    onClick={resetStatusFilter}
+                    className="mt-4 border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    Show all appointments
+                  </Button>
+                )}
               </div>
             ) : (
               <div>
-                <div className="mb-6 flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800">Past Appointments</h2>
-                  <div className="text-sm text-gray-500">{pastAppointments.length} records found</div>
+                <div className="mb-4 text-sm text-gray-500">
+                  {filteredAppointments.length} {filteredAppointments.length === 1 ? "record" : "records"} found
                 </div>
                 <div className="space-y-4">
-                  {pastAppointments.map((appointment) => {
+                  {filteredAppointments.map((appointment) => {
                     const doctor = doctors[appointment.medecin_id]
                     const statusInfo = getStatusInfo(appointment.status)
                     const appointmentDate = new Date(appointment.date)

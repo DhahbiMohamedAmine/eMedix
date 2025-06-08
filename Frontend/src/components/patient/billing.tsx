@@ -611,10 +611,7 @@ export default function BillingPage() {
           </div>
         </div>
         
-        <div class="receipt-message">
-          <p>A receipt has been sent to your email address.</p>
-          <p>Thank you for your purchase!</p>
-        </div>
+
         
         <div class="receipt-footer">
           <div>Your trusted healthcare partner providing quality medical services and products.</div>
@@ -778,7 +775,6 @@ export default function BillingPage() {
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                 <polyline points="22,6 12,13 2,6" />
               </svg>
-              <p className="text-gray-700 font-medium">A receipt has been sent to your email address.</p>
               <p className="text-gray-600">Thank you for your purchase!</p>
             </div>
           </CardContent>
